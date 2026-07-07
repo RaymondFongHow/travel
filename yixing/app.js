@@ -27,6 +27,7 @@
 
   var STORAGE_KEY = "yixing-draft-v1";
   var THEMES = ["dingshu", "spring", "bamboo-water", "night"];
+  var VIEWS = ["intro", "pool", "plan", "graph"]; // 移动端四个子页；桌面端三栏并排
   var HEAVY_EDGE_MIN = 60; // 达到这个分钟数即提示“移动偏重”
 
   // 拼配区槽位，顺序与 docs/card-composition-model.md 一致
@@ -175,7 +176,7 @@
 
   // filter：感官菜单的双重角色之二 —— 筛选卡片池（"all" 或某个主题）。
   // 只影响卡片池显示；已放入槽位的卡和路线图不受筛选影响。
-  var state = { theme: "dingshu", filter: "all", slots: {} };
+  var state = { theme: "dingshu", filter: "all", view: "intro", slots: {} };
   SLOTS.forEach(function (s) { state.slots[s.id] = null; });
 
   // 点选拼配：selection = { cardId } 或 null（来源槽位随时可从 slots 推导）
@@ -203,7 +204,7 @@
 
   function save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, theme: state.theme, filter: state.filter, slots: state.slots }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, theme: state.theme, filter: state.filter, view: state.view, slots: state.slots }));
     } catch (err) { /* 隐私模式等场景下静默失败 */ }
   }
 
@@ -217,6 +218,7 @@
 
     if (THEMES.indexOf(data.theme) !== -1) state.theme = data.theme;
     if (data.filter === "all" || THEMES.indexOf(data.filter) !== -1) state.filter = data.filter;
+    if (VIEWS.indexOf(data.view) !== -1) state.view = data.view; // 回访者接着上次的视图
 
     var seen = {};
     if (data.slots && typeof data.slots === "object") {
@@ -242,6 +244,8 @@
   var hintTextEl = document.getElementById("hint-text");
   var toastEl = document.getElementById("toast");
   var presetWrapEl = document.getElementById("preset-buttons");
+  var snackbarEl = document.getElementById("snackbar");
+  var snackbarTextEl = document.getElementById("snackbar-text");
 
   function el(tag, className, text) {
     var node = document.createElement(tag);
@@ -266,6 +270,29 @@
     document.body.setAttribute("data-theme", theme);
     renderThemeMenu();
     save();
+  }
+
+  // 视图切换只在移动端有布局效果；桌面端三栏常驻，data-view 不影响显示
+  function isMobile() {
+    return window.matchMedia("(max-width: 1023px)").matches;
+  }
+
+  function setView(view) {
+    if (VIEWS.indexOf(view) === -1) return;
+    var changed = state.view !== view;
+    state.view = view;
+    document.body.setAttribute("data-view", view);
+    renderTabBar();
+    save();
+    if (changed && isMobile()) window.scrollTo(0, 0);
+  }
+
+  function renderTabBar() {
+    var btns = document.querySelectorAll("[data-view-btn]");
+    for (var i = 0; i < btns.length; i += 1) {
+      var v = btns[i].getAttribute("data-view-btn");
+      btns[i].setAttribute("aria-pressed", v === state.view ? "true" : "false");
+    }
   }
 
   // 感官菜单按钮的按下态跟随筛选状态（菜单 = 主题切换 + 卡片池筛选）
@@ -542,6 +569,38 @@
     toastTimer = setTimeout(function () { toastEl.hidden = true; }, 2800);
   }
 
+  /* snackbar：移动端放卡后的即时反馈，带撤销 / 继续选卡，
+     支撑「选卡 → 放入 → 一键回卡片池」的快速循环 */
+
+  var snackbarTimer = null;
+  var pendingUndo = null;
+
+  function showSnackbar(message, kind, undoData) {
+    pendingUndo = undoData || null;
+    snackbarTextEl.textContent = message;
+    snackbarEl.className = "snackbar" + (kind === "warn" ? " snackbar--warn" : "");
+    snackbarEl.hidden = false;
+    if (snackbarTimer) clearTimeout(snackbarTimer);
+    snackbarTimer = setTimeout(hideSnackbar, 4200);
+  }
+
+  function hideSnackbar() {
+    if (snackbarTimer) clearTimeout(snackbarTimer);
+    snackbarTimer = null;
+    pendingUndo = null;
+    snackbarEl.hidden = true;
+  }
+
+  function undoAssign(u) {
+    state.slots[u.target] = u.displaced || null;
+    if (u.source) state.slots[u.source] = u.cardId;
+    clearSelection();
+    hideSnackbar();
+    save();
+    renderAll();
+    toast("已撤销");
+  }
+
   /* ================= 5. 交互 ================= */
 
   function clearSelection() {
@@ -561,35 +620,51 @@
     }
 
     var displacedId = state.slots[targetSlotId] || null;
+    // 撤销快照：记录这次放置动了哪两个槽位
+    var undoData = { target: targetSlotId, source: sourceSlotId, displaced: displacedId, cardId: cardId };
     state.slots[targetSlotId] = cardId;
     if (sourceSlotId) {
       // 同一草案不重复：从原槽位移走；目标被占用则两卡交换
       state.slots[sourceSlotId] = displacedId;
     }
 
-    // 即时反馈，按重要性只弹一条；持久提示由槽位内警告承担
+    // 即时反馈，按重要性只出一条；持久提示由槽位内警告承担
+    var msg;
+    var kind = null;
     if (card.type === "stay" && slot.kind !== "stay") {
-      toast("注意：「" + card.title + "」是住宿卡，通常放住宿槽", "warn");
+      msg = "注意：「" + card.title + "」是住宿卡，通常放住宿槽";
+      kind = "warn";
     } else if (slot.kind === "afternoon" && (card.heatRisk === "medium" || card.heatRisk === "high")) {
-      toast("「" + card.title + "」午后偏晒，建议放上午或傍晚", "warn");
+      msg = "「" + card.title + "」午后偏晒，建议放上午或傍晚";
+      kind = "warn";
     } else if (card.reservationNeeded) {
-      toast("「" + card.title + "」需要提前预约");
+      msg = "「" + card.title + "」需要提前预约";
     } else if (sourceSlotId && displacedId) {
-      toast("两张卡已交换");
+      msg = "两张卡已交换";
     } else if (sourceSlotId) {
-      toast("已移动到 " + slot.label);
+      msg = "已移动到 " + slot.label;
     } else if (displacedId && cardById[displacedId]) {
-      toast("「" + cardById[displacedId].title + "」已移回卡片池");
+      msg = "「" + cardById[displacedId].title + "」已移回卡片池";
+    } else {
+      msg = "已放入 " + slot.label;
     }
 
     clearSelection();
     save();
     renderAll();
+
+    // 移动端用 snackbar（可撤销、可跳回卡片池），桌面端卡片池常驻，轻提示即可
+    if (isMobile()) {
+      showSnackbar(msg, kind, undoData);
+    } else {
+      toast(msg, kind);
+    }
   }
 
   function removeFromSlot(slotId) {
     var cardId = state.slots[slotId];
     if (!cardId) return;
+    hideSnackbar(); // 槽位又变了，旧的撤销快照作废
     state.slots[slotId] = null;
     if (selection && selection.cardId === cardId) clearSelection();
     save();
@@ -605,9 +680,12 @@
       renderAll();
       return;
     }
+    hideSnackbar();
     selection = { cardId: cardId };
     setTheme(card.theme); // 点选卡片时页面切到该卡主题
     renderAll();
+    // 移动端：选中即跳到行程拼配，下一步点槽位放入（hint bar 可取消）
+    if (isMobile() && state.view !== "plan") setView("plan");
   }
 
   function onSlotTap(slotId) {
@@ -630,6 +708,7 @@
     }
     if (!preset) return;
 
+    hideSnackbar();
     var seen = {};
     SLOTS.forEach(function (s) {
       var id = preset.slots ? preset.slots[s.id] : null;
@@ -649,6 +728,7 @@
 
   function resetDraft() {
     if (!window.confirm("清空当前拼配草稿？")) return;
+    hideSnackbar();
     SLOTS.forEach(function (s) { state.slots[s.id] = null; });
     clearSelection();
     try { localStorage.removeItem(STORAGE_KEY); } catch (err) { /* ignore */ }
@@ -664,6 +744,24 @@
     if (suppressClick) {
       e.preventDefault();
       e.stopPropagation();
+      return;
+    }
+
+    var viewBtn = e.target.closest("[data-view-btn]");
+    if (viewBtn) { setView(viewBtn.getAttribute("data-view-btn")); return; }
+
+    var gotoBtn = e.target.closest("[data-goto]");
+    if (gotoBtn) { setView(gotoBtn.getAttribute("data-goto")); return; }
+
+    if (e.target.closest("#snackbar-undo")) {
+      if (pendingUndo) undoAssign(pendingUndo);
+      else hideSnackbar();
+      return;
+    }
+
+    if (e.target.closest("#snackbar-back")) {
+      hideSnackbar();
+      setView("pool");
       return;
     }
 
@@ -720,6 +818,7 @@
   function cancelDrag() {
     if (!drag) return;
     if (drag.timer) clearTimeout(drag.timer);
+    try { document.body.releasePointerCapture(drag.pointerId); } catch (err) { /* 未捕获时忽略 */ }
     if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
     if (drag.overSlot) drag.overSlot.classList.remove("slot--over");
     if (drag.el) drag.el.classList.remove("drag-source");
@@ -737,6 +836,13 @@
     positionGhost();
     document.body.classList.add("drag-active");
     drag.el.classList.add("drag-source");
+
+    // 把 pointer 捕获转到 body：移动端提起后切视图会隐藏拖拽源，
+    // 不转移的话后续 pointer 事件可能随源元素一起消失
+    try { document.body.setPointerCapture(drag.pointerId); } catch (err) { /* 不支持则依赖隐式捕获 */ }
+
+    // 移动端：提起卡片即切到行程拼配，槽位成为可放目标
+    if (isMobile() && state.view !== "plan") setView("plan");
   }
 
   function positionGhost() {
@@ -842,6 +948,8 @@
 
   load();
   document.body.setAttribute("data-theme", state.theme);
+  document.body.setAttribute("data-view", state.view);
+  renderTabBar();
   renderPresetButtons();
   renderAll();
 })();

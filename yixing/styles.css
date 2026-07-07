@@ -83,7 +83,8 @@ body {
   font-size: 15px;
   line-height: 1.6;
   transition: background-color 0.45s ease, color 0.45s ease;
-  padding-bottom: 88px; /* 给 hint-bar 留空间 */
+  /* 移动端：给底部 tab 栏 + hint/snackbar 留空间 */
+  padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px));
 }
 
 .container {
@@ -118,7 +119,7 @@ button {
 
 .site-header h1 { font-size: 24px; letter-spacing: 0.02em; }
 
-.intro {
+.header-tagline {
   margin: 10px 0 0;
   color: var(--muted);
   font-size: 13.5px;
@@ -183,16 +184,7 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
 .plan-section { margin-bottom: 40px; }
 .graph-section { margin-bottom: 48px; }
 
-@media (min-width: 960px) {
-  .container { max-width: 1060px; }
-  .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-    gap: 40px;
-    align-items: start;
-  }
-  .pool-section { margin-bottom: 0; }
-}
+/* （视图系统的响应式规则在文件末尾，需要排在组件规则之后才能正确覆盖） */
 
 /* ---------- 卡片池 ---------- */
 
@@ -539,7 +531,7 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
   position: fixed;
   left: 12px;
   right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(74px + env(safe-area-inset-bottom, 0px)); /* tab 栏之上 */
   z-index: 40;
   display: flex;
   align-items: center;
@@ -560,7 +552,7 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(138px + env(safe-area-inset-bottom, 0px)); /* tab 栏与 hint/snackbar 之上 */
   transform: translateX(-50%);
   z-index: 50;
   max-width: 86vw;
@@ -576,6 +568,152 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
 .toast[hidden] { display: none; }
 
 .toast--warn { background: var(--warn); color: #fff; }
+
+/* ---------- 简介视图 ---------- */
+
+.view-intro { max-width: 34em; }
+
+.intro-lead {
+  margin: 4px 0 12px;
+  font-size: 16.5px;
+  line-height: 1.75;
+}
+
+.view-intro > p { font-size: 13.5px; color: var(--muted); }
+
+.view-intro h2 {
+  margin: 24px 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.intro-themes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.intro-themes li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.intro-themes li::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--card-accent, var(--accent));
+  transform: translateY(1px);
+}
+
+.intro-themes strong {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.intro-steps {
+  margin: 0;
+  padding-left: 1.3em;
+  font-size: 13.5px;
+  display: grid;
+  gap: 6px;
+}
+
+.intro-note {
+  margin: 14px 0 24px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+.primary-btn:hover { opacity: 0.88; }
+body[data-theme="night"] .primary-btn { color: #181715; }
+
+/* ---------- 底部 tab 栏（移动端） ---------- */
+
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  transition: background-color 0.45s ease;
+}
+
+.tab-bar button {
+  font-size: 12px;
+  padding: 9px 2px;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.tab-bar button[aria-pressed="true"] {
+  color: var(--accent);
+  font-weight: 600;
+  background: var(--chip-bg);
+}
+
+/* ---------- snackbar（放卡后的撤销 / 继续选卡） ---------- */
+
+.snackbar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+  z-index: 48;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  max-width: 616px;
+  margin: 0 auto;
+  padding: 10px 12px 10px 14px;
+  border-radius: 12px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+}
+
+.snackbar[hidden] { display: none; }
+
+.snackbar--warn { background: var(--warn); color: #fff; }
+
+.snackbar-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+
+.snackbar-actions button {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  color: inherit;
+}
 
 /* ---------- 拖拽 ---------- */
 
@@ -608,6 +746,36 @@ body.drag-active .slot {
 }
 
 .drag-source { opacity: 0.35; }
+
+/* ---------- 视图系统 ----------
+   移动端：四个子页（简介 / 卡片池 / 行程拼配 / 路线图）由 body[data-view] 切换，
+   底部 tab 栏导航；桌面端：tab 栏隐藏，三栏并排，简介由页头 tagline 承担。
+   注意：必须排在组件规则之后，同等特异性下靠顺序覆盖。 */
+
+@media (max-width: 1023px) {
+  .view { display: none; }
+  body[data-view="intro"] #view-intro,
+  body[data-view="pool"] #view-pool,
+  body[data-view="plan"] #view-plan,
+  body[data-view="graph"] #view-graph { display: block; }
+}
+
+@media (min-width: 1024px) {
+  body { padding-bottom: 88px; }
+  .container { max-width: 1520px; }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 10fr) minmax(0, 10fr) minmax(0, 8fr);
+    gap: 44px;
+    align-items: start;
+  }
+  #view-intro { display: none; } /* 简介内容桌面端已由页头 tagline 与各区说明覆盖 */
+  .tab-bar { display: none; }
+  .snackbar { display: none; } /* snackbar 是移动端机制，桌面走 toast */
+  .pool-section, .plan-section, .graph-section { margin-bottom: 0; }
+  .hint-bar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .toast { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+}
 
 /* 动效克制：尊重系统减少动效偏好 */
 @media (prefers-reduced-motion: reduce) {
