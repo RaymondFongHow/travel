@@ -753,6 +753,18 @@
     var gotoBtn = e.target.closest("[data-goto]");
     if (gotoBtn) { setView(gotoBtn.getAttribute("data-goto")); return; }
 
+    // 简介里的感官入口：切主题 + 筛选卡片池，并跳到卡片池
+    var themeGo = e.target.closest("[data-theme-go]");
+    if (themeGo) {
+      var gt = themeGo.getAttribute("data-theme-go");
+      state.filter = gt;
+      setTheme(gt); // setTheme 内部会 save
+      renderPool();
+      renderThemeMenu();
+      setView("pool");
+      return;
+    }
+
     if (e.target.closest("#snackbar-undo")) {
       if (pendingUndo) undoAssign(pendingUndo);
       else hideSnackbar();
@@ -818,6 +830,7 @@
   function cancelDrag() {
     if (!drag) return;
     if (drag.timer) clearTimeout(drag.timer);
+    if (drag.scrollTimer) clearInterval(drag.scrollTimer);
     try { document.body.releasePointerCapture(drag.pointerId); } catch (err) { /* 未捕获时忽略 */ }
     if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
     if (drag.overSlot) drag.overSlot.classList.remove("slot--over");
@@ -843,6 +856,21 @@
 
     // 移动端：提起卡片即切到行程拼配，槽位成为可放目标
     if (isMobile() && state.view !== "plan") setView("plan");
+
+    // 槽位列表通常比视口高：指针停在上下边缘时自动滚动，拖得到画面外的槽位
+    drag.scrollTimer = setInterval(autoScrollDuringDrag, 30);
+  }
+
+  function autoScrollDuringDrag() {
+    if (!drag || !drag.lifted) return;
+    var edge = 72;
+    var step = 0;
+    if (drag.lastY < edge) step = -9;
+    else if (drag.lastY > window.innerHeight - edge) step = 9;
+    if (step) {
+      window.scrollBy(0, step);
+      updateDropTarget(); // 页面滚了，指针下方的槽位会变
+    }
   }
 
   function positionGhost() {
@@ -879,7 +907,8 @@
       lifted: false,
       overSlot: null,
       ghost: null,
-      timer: null
+      timer: null,
+      scrollTimer: null
     };
 
     // 触屏：按住 230ms 不动才提起，先保证页面还能滚动

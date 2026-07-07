@@ -126,14 +126,13 @@ button {
   max-width: 34em;
 }
 
-/* ---------- 感官菜单 ---------- */
-
-.menu-section { padding-top: 26px; }
+/* ---------- 感官菜单（卡片池视图内：主题切换 + 筛选） ---------- */
 
 .theme-menu {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  margin-bottom: 16px;
   padding-bottom: 4px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -602,7 +601,11 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
   gap: 10px;
   font-size: 13.5px;
   color: var(--muted);
+  cursor: pointer; /* 可点：切主题 + 筛选卡片池并跳转 */
 }
+
+.intro-themes li:hover strong,
+.intro-themes li:active strong { color: var(--accent); }
 
 .intro-themes li::before {
   content: "";
@@ -753,11 +756,22 @@ body.drag-active .slot {
    注意：必须排在组件规则之后，同等特异性下靠顺序覆盖。 */
 
 @media (max-width: 1023px) {
+  /* 页头保持紧凑；这段内容由简介视图承担 */
+  .header-tagline { display: none; }
+
   .view { display: none; }
   body[data-view="intro"] #view-intro,
   body[data-view="pool"] #view-pool,
   body[data-view="plan"] #view-plan,
-  body[data-view="graph"] #view-graph { display: block; }
+  body[data-view="graph"] #view-graph {
+    display: block;
+    animation: view-fade 0.22s ease; /* display 切换时重放，形成轻微淡入 */
+  }
+}
+
+@keyframes view-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
 
 @media (min-width: 1024px) {
@@ -779,5 +793,5 @@ body.drag-active .slot {
 
 /* 动效克制：尊重系统减少动效偏好 */
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
+  * { transition: none !important; animation: none !important; }
 }
