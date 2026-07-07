@@ -15,7 +15,7 @@
 
 ## 单页结构草案
 
-页面可以分为四个区域：
+页面可以分为四个区域。第一版的产品目标是“拼配工具”，不是“固定行程页”：
 
 1. 感官菜单
    - 丁蜀
@@ -29,6 +29,8 @@
    - 餐饮
    - 住宿
    - 空档 / 自由时间
+   - 桌游 / Saboteur / 打牌
+   - 每个候选项是一张可拖拽卡片
 
 3. 行程拼配区
    - Day 1 上午
@@ -42,6 +44,25 @@
    - 当上下两个模块区域不同，自动插入大致交通时间。
    - 例如：丁蜀 -> 竹海，提示 `约 45-60 min`。
    - 同时驱动一张交通时距网络图，只有确认存在直接交通的两点才画线。
+
+## 不预设固定行程
+
+网站可以内置一个“建议拼法”作为示例，但默认体验应是：
+
+- 先展示候选卡片池。
+- 让朋友按兴趣拖拽到时间槽。
+- 交通、热度、预约、体验强度等作为即时反馈出现。
+- 住宿也像景点一样进入拼配系统。
+- 页面不强迫用户接受唯一行程。
+- 空白、休息、临时打牌也应是合法安排，不把每个时段塞满。
+
+实际内容层级应是：
+
+1. 地点 / 体验 / 住宿卡片。
+2. 休息 / 自由时间 / Saboteur 卡片。
+3. 可拖拽时间槽。
+4. 实时交通网络图。
+5. 可选的示例组合或推荐 preset。
 
 ## Theme 切换机制
 
@@ -95,9 +116,14 @@ const places = [
     type: "place",
     theme: "dingshu",
     locationCode: "DS",
+    cardRole: "experience-anchor",
     durationMin: 90,
     bestTime: ["afternoon", "late-afternoon"],
     tags: ["紫砂", "老街", "工坊", "散步"],
+    reservationNeeded: false,
+    heatRisk: "medium",
+    experienceValue: 4,
+    visualValue: 4,
     groupFit: "all-four",
     notes: "适合作为进入丁蜀线的第一站。"
   },
@@ -107,11 +133,33 @@ const places = [
     type: "stay",
     theme: "night",
     locationCode: "CENTER",
+    cardRole: "stay",
     durationMin: 0,
     bestTime: ["night"],
     tags: ["住宿", "交通方便"],
+    reservationNeeded: true,
+    heatRisk: "none",
+    experienceValue: 1,
+    visualValue: 2,
     groupFit: "all-four",
     notes: "住宿像景点一样进入拼配系统。"
+  },
+  {
+    id: "saboteur-break",
+    title: "Saboteur / 打牌",
+    type: "free-time",
+    theme: "night",
+    locationCode: "CURRENT",
+    cardRole: "buffer",
+    durationMin: 60,
+    bestTime: ["afternoon", "evening", "night"],
+    tags: ["休息", "朋友", "灵活"],
+    reservationNeeded: false,
+    heatRisk: "none",
+    experienceValue: 3,
+    visualValue: 1,
+    groupFit: "all-four",
+    notes: "用于保留旅行中的松弛时间，不进入交通网络图。"
   }
 ];
 ```
@@ -180,10 +228,11 @@ function getTravelTime(fromCode, toCode) {
 
 实现方式可以保持简单：
 
-- 每个地点是一个 draggable item。
+- 每个地点 / 体验 / 餐饮 / 住宿 / 自由时间是一个 draggable card。
 - 行程时段是 drop zone。
 - drop 后保存到本地 JS 状态。
 - 可选：用 `localStorage` 保存朋友上次拼出的版本。
+- 可选：用 URL hash 保存一个可分享的拼配版本。
 - 不需要账号或远端同步。
 
 可拖拽模块类型：
@@ -193,6 +242,7 @@ function getTravelTime(fromCode, toCode) {
 - 茶 / 咖啡 / 餐饮。
 - 住宿。
 - 自由时间。
+- Saboteur / 打牌。
 - 交通缓冲。
 
 ## 住宿作为模块
