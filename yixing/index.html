@@ -28,10 +28,10 @@
 
     <h2>四种感官入口</h2>
     <ul class="intro-themes">
-      <li data-card-theme="dingshu" data-theme-go="dingshu"><strong>丁蜀 · 泥与窑火</strong>紫砂、老街、窑火的暖</li>
-      <li data-card-theme="spring" data-theme-go="spring"><strong>春日 · 茶与田野</strong>阳羡茶、山坡、清晨的亮</li>
-      <li data-card-theme="bamboo-water" data-theme-go="bamboo-water"><strong>竹洞水 · 清凉</strong>竹海、溶洞、湖边的湿润</li>
-      <li data-card-theme="night" data-theme-go="night"><strong>夜晚 · 饭局与住宿</strong>本地菜、夜茶、松弛下来</li>
+      <li data-card-theme="dingshu" data-theme-go="dingshu"><strong>丁蜀 · 泥与窑火</strong>紫砂、老街、窑坊</li>
+      <li data-card-theme="spring" data-theme-go="spring"><strong>春日 · 茶与田野</strong>阳羡茶、茶园、山坡</li>
+      <li data-card-theme="bamboo-water" data-theme-go="bamboo-water"><strong>竹洞水 · 清凉</strong>竹海、溶洞、湖边</li>
+      <li data-card-theme="night" data-theme-go="night"><strong>夜晚 · 饭局与住宿</strong>本地菜、夜茶、住宿</li>
     </ul>
 
     <h2>怎么用</h2>
@@ -40,8 +40,6 @@
       <li>到「行程」点一个时间槽放入。</li>
       <li>在「路线图」看看动线顺不顺；时间都是粗估。</li>
     </ol>
-    <p class="intro-note">留白和 Saboteur 打牌也是正经安排，不用把每个时段填满。</p>
-
     <button type="button" class="primary-btn" data-goto="pool">开始拼</button>
   </section>
 
@@ -77,7 +75,7 @@
     <div class="template-row">
       <span class="template-label">模板</span>
       <span id="preset-buttons"></span>
-      <span class="template-note">只是起点，不是答案；空着的槽位就是留白。</span>
+      <span class="template-note">默认起点，可自由改动；空槽位即留白。</span>
     </div>
     <div id="slot-list"></div>
   </section>
@@ -87,10 +85,10 @@
       <h2>路线图</h2>
     </div>
     <div class="region-overview">
-      <p class="section-note">各区域相对位置与打车时距概览（粗估，线长 ≈ 时间）。</p>
+      <p class="section-note">各区域实际相对方位；线上数字为打车分钟（粗估）。</p>
       <div id="region-map"></div>
     </div>
-    <p class="section-note">下面按拼配顺序生成；线越长，移动越重。虚线段为区域粗估或待确认。</p>
+    <p class="section-note">下面按拼配顺序生成，线长与耗时成正比；虚线为区域粗估或待确认。</p>
     <div id="route-graph"></div>
     <p id="route-summary" class="route-summary"></p>
   </section>
@@ -99,7 +97,7 @@
 
 <footer class="site-footer container">
   <p>
-    高铁进出 · 城内打车为主 · 住宿从简 · 没事就打一局 Saboteur。
+    高铁进出 · 城内打车为主 · 住宿从简。
   </p>
 </footer>
 

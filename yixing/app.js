@@ -34,20 +34,36 @@
   var VIEWS = ["intro", "pool", "plan", "graph"]; // 移动端四个子页；桌面端三栏并排
   var HEAVY_EDGE_MIN = 60; // 达到这个分钟数即提示“移动偏重”
 
-  // 拼配区槽位，顺序与 docs/card-composition-model.md 一致
+  // 拼配区槽位：按 2 小时粒度排（用户要求，不让一个板块独占整个上午/下午）。
+  // kind 用于热度/住宿等提示：08-10 morning，12-16 afternoon，18-20 evening。
+  // day 用于分组表头；time: true 的空槽渲染成紧凑单行。
   var SLOTS = [
-    { id: "arrival", label: "到达", sub: "Arrival", kind: "flex" },
-    { id: "d1-morning", label: "Day 1 · 上午", sub: "Morning", kind: "morning" },
-    { id: "d1-afternoon", label: "Day 1 · 下午", sub: "Afternoon", kind: "afternoon" },
-    { id: "d1-evening", label: "Day 1 · 晚上", sub: "Evening", kind: "evening" },
-    { id: "stay1", label: "住宿 · 第 1 晚", sub: "Stay 1", kind: "stay" },
-    { id: "d2-morning", label: "Day 2 · 上午", sub: "Morning", kind: "morning" },
-    { id: "d2-afternoon", label: "Day 2 · 下午", sub: "Afternoon", kind: "afternoon" },
-    { id: "d2-evening", label: "Day 2 · 晚上", sub: "Evening", kind: "evening" },
-    { id: "stay2", label: "住宿 · 第 2 晚", sub: "Stay 2", kind: "stay" },
-    { id: "d3-morning", label: "Day 3 · 上午", sub: "Morning", kind: "morning" },
-    { id: "return", label: "午餐 / 返程", sub: "Lunch / Return", kind: "flex" }
+    { id: "arrival", label: "到达", sub: "Arrival", kind: "flex", day: null },
+    { id: "d1-08", label: "08:00", kind: "morning", day: "Day 1", time: true },
+    { id: "d1-10", label: "10:00", kind: "morning", day: "Day 1", time: true },
+    { id: "d1-12", label: "12:00", kind: "afternoon", day: "Day 1", time: true },
+    { id: "d1-14", label: "14:00", kind: "afternoon", day: "Day 1", time: true },
+    { id: "d1-16", label: "16:00", kind: "afternoon", day: "Day 1", time: true },
+    { id: "d1-18", label: "18:00", kind: "evening", day: "Day 1", time: true },
+    { id: "d1-20", label: "20:00", kind: "evening", day: "Day 1", time: true },
+    { id: "stay1", label: "住宿", sub: "Stay 1", kind: "stay", day: "Day 1" },
+    { id: "d2-08", label: "08:00", kind: "morning", day: "Day 2", time: true },
+    { id: "d2-10", label: "10:00", kind: "morning", day: "Day 2", time: true },
+    { id: "d2-12", label: "12:00", kind: "afternoon", day: "Day 2", time: true },
+    { id: "d2-14", label: "14:00", kind: "afternoon", day: "Day 2", time: true },
+    { id: "d2-16", label: "16:00", kind: "afternoon", day: "Day 2", time: true },
+    { id: "d2-18", label: "18:00", kind: "evening", day: "Day 2", time: true },
+    { id: "d2-20", label: "20:00", kind: "evening", day: "Day 2", time: true },
+    { id: "stay2", label: "住宿", sub: "Stay 2", kind: "stay", day: "Day 2" },
+    { id: "d3-08", label: "08:00", kind: "morning", day: "Day 3", time: true },
+    { id: "d3-10", label: "10:00", kind: "morning", day: "Day 3", time: true },
+    { id: "return", label: "12:00 · 午餐 / 返程", sub: "Return", kind: "flex", day: "Day 3" }
   ];
+
+  // 槽位对用户的完整称呼（toast、已在标签、路线图都用它）
+  function slotLabel(slot) {
+    return (slot.day ? slot.day + " · " : "") + slot.label;
+  }
 
   var THEME_GROUPS = [
     { theme: "dingshu", label: "丁蜀 · 泥与窑火" },
@@ -379,7 +395,7 @@
     if (card.heatRisk === "medium") meta.appendChild(chip("偏晒", "badge badge-heat"));
     if (card.heatRisk === "high") meta.appendChild(chip("暴晒", "badge badge-heat"));
     if (card.pending) meta.appendChild(chip("待确认", "badge badge-tbc"));
-    if (used) meta.appendChild(chip("已在 " + slotById[used].label, "chip chip-assigned"));
+    if (used) meta.appendChild(chip("已在 " + slotLabel(slotById[used]), "chip chip-assigned"));
     node.appendChild(meta);
 
     return node;
@@ -422,12 +438,14 @@
     var cls = "slot " + (card ? "slot--filled" : "slot--empty");
     if (slot.kind === "stay") cls += " slot--stay";
 
+    if (slot.time) cls += " slot--time";
     var node = el("section", cls);
     node.setAttribute("data-slot-id", slot.id);
 
     var head = el("div", "slot-head");
     head.appendChild(el("span", "slot-label", slot.label));
-    head.appendChild(el("span", "slot-sub", slot.sub));
+    if (slot.sub) head.appendChild(el("span", "slot-sub", slot.sub));
+    else if (slot.time && !card) head.appendChild(el("span", "slot-sub", "留白"));
     node.appendChild(head);
 
     if (card) {
@@ -455,8 +473,9 @@
         });
         node.appendChild(ul);
       }
-    } else {
-      var emptyText = slot.kind === "stay" ? "还没选住宿" : "留白 · 什么都不排也可以";
+    } else if (!slot.time) {
+      // 时间槽的空态只在标题行标「留白」，不再占一段文字
+      var emptyText = slot.kind === "stay" ? "还没选住宿" : "留白";
       node.appendChild(el("p", "slot-empty-note", emptyText));
     }
 
@@ -500,7 +519,12 @@
   function renderSlots() {
     slotListEl.innerHTML = "";
     var slotEls = {};
+    var lastDay = null;
     SLOTS.forEach(function (slot) {
+      if (slot.day && slot.day !== lastDay) {
+        slotListEl.appendChild(el("h3", "slot-day-head", slot.day));
+        lastDay = slot.day;
+      }
       var elx = buildSlotEl(slot);
       slotEls[slot.id] = elx;
       slotListEl.appendChild(elx);
@@ -526,7 +550,7 @@
     var text = el("div", "graph-node-text");
     text.appendChild(el("span", "graph-node-label", card.mapNode.shortLabel));
     var slotId = slotOfCard(card.id);
-    if (slotId) text.appendChild(el("span", "graph-node-slot", slotById[slotId].label));
+    if (slotId) text.appendChild(el("span", "graph-node-slot", slotLabel(slotById[slotId])));
     node.appendChild(text);
     return node;
   }
@@ -574,7 +598,7 @@
     var graph = currentGraph();
 
     if (!graph.nodes.length) {
-      graphEl.appendChild(el("p", "graph-empty", "还没有可画的路线。往时间槽里放两个地点试试。"));
+      graphEl.appendChild(el("p", "graph-empty", "还没有路线：先在行程里放入两个地点。"));
       summaryEl.textContent = "";
       updateRegionHighlight(graph);
       return;
@@ -605,7 +629,7 @@
     if (!codes.length) return;
     var svgNS = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 300 270");
+    svg.setAttribute("viewBox", YXD.regionMapViewBox || "0 0 300 440");
     svg.setAttribute("class", "region-map-svg");
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", "各区域相对位置与打车时距概览");
@@ -643,7 +667,13 @@
       dot.setAttribute("r", 5);
       g.appendChild(dot);
       var name = document.createElementNS(svgNS, "text");
-      name.setAttribute("x", c.x + 9);
+      // 标签朝向按数据手工指定，避免相邻节点文字重叠
+      if (c.side === "left") {
+        name.setAttribute("x", c.x - 9);
+        name.setAttribute("text-anchor", "end");
+      } else {
+        name.setAttribute("x", c.x + 9);
+      }
       name.setAttribute("y", c.y + 4);
       name.textContent = locLabel(code);
       g.appendChild(name);
@@ -778,11 +808,11 @@
     } else if (sourceSlotId && displacedId) {
       msg = "两张卡已交换";
     } else if (sourceSlotId) {
-      msg = "已移动到 " + slot.label;
+      msg = "已移动到 " + slotLabel(slot);
     } else if (displacedId && cardById[displacedId]) {
       msg = "「" + cardById[displacedId].title + "」已移回菜单";
     } else {
-      msg = "已放入 " + slot.label;
+      msg = "已放入 " + slotLabel(slot);
     }
 
     clearSelection();
@@ -953,7 +983,7 @@
     clearSelection();
     try { localStorage.removeItem(STORAGE_KEY); } catch (err) { /* ignore */ }
     renderAll();
-    toast("已清空，重新开始拼");
+    toast("已清空");
   }
 
   /* ---------- 点击（含拖拽后的 click 抑制） ---------- */

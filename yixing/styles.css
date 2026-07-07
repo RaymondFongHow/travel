@@ -190,13 +190,15 @@ button {
 
 #view-pool {
   border-radius: 14px;
+  padding: 14px 16px 16px;
+  /* 「全部」时也有面板：比页面底色深一档的同色系 */
+  background: #f1f0ec;
   transition: background-color 0.45s ease, color 0.45s ease;
 }
 
 #view-pool[data-theme] {
   background: var(--bg);
   color: var(--text); /* night 等深色主题需要跟着换文字色 */
-  padding: 14px 16px 16px;
 }
 
 .pool-group { margin-bottom: 22px; }
@@ -314,6 +316,20 @@ button {
 /* ---------- 时间槽 ---------- */
 
 #slot-list { display: flex; flex-direction: column; gap: 8px; }
+
+.slot-day-head {
+  margin: 14px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.slot-day-head:first-child { margin-top: 0; }
+
+/* 2 小时粒度的时间槽：空态压成单行，别让 20 个槽占满整屏 */
+.slot--time { padding: 7px 12px 8px; }
+.slot--time .slot-label { font-variant-numeric: tabular-nums; }
+.slot--time.slot--empty .slot-sub { opacity: 0.5; text-transform: none; letter-spacing: 0.04em; }
 
 .slot {
   background: var(--surface);
@@ -485,8 +501,7 @@ button {
 
 .region-map-svg {
   display: block;
-  width: 100%;
-  max-width: 380px;
+  width: 100%; /* 占满整列，viewBox 按真实纵横比 */
 }
 
 .region-map-line {
@@ -868,8 +883,8 @@ body.drag-active .slot {
   /* 页头保持紧凑；这段内容由简介视图承担 */
   .header-tagline { display: none; }
 
-  /* 菜单着色时整幅铺开，像走进那种氛围 */
-  #view-pool[data-theme] {
+  /* 菜单面板在移动端整幅铺开 */
+  #view-pool {
     margin-left: -18px;
     margin-right: -18px;
     border-radius: 0;
