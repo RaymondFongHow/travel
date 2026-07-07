@@ -120,13 +120,6 @@ button {
 
 .site-header h1 { font-size: 24px; letter-spacing: 0.02em; }
 
-.header-tagline {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 13.5px;
-  max-width: 34em;
-}
-
 /* ---------- 感官菜单（卡片池视图内：主题切换 + 筛选） ---------- */
 
 .theme-menu {
@@ -897,9 +890,6 @@ body.drag-active .slot {
    注意：必须排在组件规则之后，同等特异性下靠顺序覆盖。 */
 
 @media (max-width: 1023px) {
-  /* 页头保持紧凑；这段内容由简介视图承担 */
-  .header-tagline { display: none; }
-
   /* 菜单面板在移动端整幅铺开 */
   #view-pool {
     margin-left: -18px;
