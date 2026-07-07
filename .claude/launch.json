@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "travel-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4611"],
+      "port": 4611,
+      "autoPort": false
+    }
+  ]
+}

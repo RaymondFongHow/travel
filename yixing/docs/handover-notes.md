@@ -1,6 +1,32 @@
 # Handover Notes
 
-这份文档给下一个 agent。当前项目仍在规划阶段，重点不是立刻做最终页面，而是把产品模型和地点数据结构定清楚。
+这份文档给下一个 agent。第一版静态网站已经建成并可以本地运行 / 部署；当前的重点转为：讨论并确认真实地点池，然后把占位数据替换掉。
+
+## 当前实现状态（v1 已建成，2026-07）
+
+已按 docs 里的产品模型实现第一版纯静态站（无构建工具、无框架、无依赖）：
+
+- `index.html`（repo 根）：travel.raymondfonghow.com 的极简落地页，相对链接到 `yixing/`。
+- `yixing/index.html` / `yixing/styles.css` / `yixing/app.js`：单页拼配工具。
+- `yixing/data/places.js`：16 张占位卡片（含 2 张住宿、自由时间 / Saboteur、交通缓冲）。
+- `yixing/data/transport-edges.js`：23 条占位直连边，全部 `confidence: "low"`，label 带「估」。
+- `yixing/data/blocked-edges.js`：3 条示例禁连关系（含建议中转）。
+- `yixing/data/presets.js`：周五晚到 / 周六早到两个 preset（只是起点，含刻意留白）。
+
+已实现的功能：
+
+- 四主题（dingshu / spring / bamboo-water / night）由 `body[data-theme]` + CSS variables 驱动；点选卡片也会切到该卡主题。
+- 感官菜单是双重控件（用户反馈后的设计）：点选一种感官同时切换页面主题并把卡片池筛选到该主题；「全部」恢复完整卡片池。筛选只影响卡片池，不影响已放入槽位的卡和路线图。
+- 卡片池按主题分组；卡片显示时长、位置、需预约 / 热度 / 待确认小标签；自由时间与缓冲卡视觉更轻。
+- 拼配区 11 个槽位（Arrival、Day 1-3 各时段、Stay 1/2、Lunch / Return）；支持放入、移出、移动 / 交换；同一草案内卡片不重复（再次放入等于移动）。
+- 交互双轨：点卡片再点槽位（触屏主路径）+ pointer events 拖拽（触屏长按提起，鼠标直接拖）；未使用 HTML5 原生 drag-and-drop。
+- 相邻已选地点的交通反馈来自 `transportEdges`（唯一数据源，无区域矩阵）；缺边显示「需单独确认」和断点，命中 `blockedEdges` 时显示原因与建议中转；`locationCode: "CURRENT"` 的卡不触发交通边。
+- 顺序路线图为普通 HTML（flex column，连接线高度按分钟映射，64-260px 上下限）；`buildRouteGraph` 纯数据逻辑与 DOM 渲染分离；单段 ≥60 分钟提示「移动偏重」。
+- 高热卡片放入下午槽提示热度风险；需预约卡片放入任意槽显示预约提示；住宿卡放入非 Stay 槽给强提示（不硬性阻止）。
+- `localStorage` 保存草稿 + 清空按钮；两个 preset 按钮载入默认槽位状态。URL hash 分享暂未做。
+- locationCode（DS / YX / CENTER 等）只作为内部数据键，UI 一律通过字典显示中文名（丁蜀 / 阳羡 / 宜兴城区…）。
+
+重要：**当前所有地点、交通时间、禁连关系都是占位草稿**，来自 `docs/place-options-to-discuss.md` 的候选方向，尚未经过四人讨论确认，也未用高德 / 百度核实。占位卡片带 `pending: true` 字段（UI 显示「待确认」）；该字段是实现阶段对 schema 的最小扩展。
 
 ## 已定方向
 
@@ -46,12 +72,12 @@
 
 ## 下一步建议
 
-1. 建立候选卡片池。
-2. 给每张卡补 `type / theme / locationCode / durationMin / heatRisk / reservationNeeded / experienceValue / visualValue`。
-3. 把地点分成 `must / strong / optional / avoid-for-this-trip`。
-4. 建立 `transportEdges`，只记录确认直连的交通关系。
-5. 建立 `blockedEdges`，记录容易误连但不应直连的关系。
-6. 之后再进入实际页面实现。
+1. 和朋友讨论确认真实地点池（以 `docs/place-options-to-discuss.md` 为清单），把地点分成 `must / strong / optional / avoid-for-this-trip`。
+2. 用确认结果替换 `yixing/data/places.js` 的占位卡片，去掉已确认卡片的 `pending` 标记。
+3. 用高德 / 百度逐条核实 `transportEdges` 的时间，提升 `confidence`，补齐或删除边。
+4. 复核 `blockedEdges`：哪些组合确实不应直连、建议中转是谁。
+5. 确认住宿候选后更新两张住宿卡（`stay-dingshu-lake` 目前没有任何交通边，故意如此）。
+6. 页面骨架已就绪，数据替换后基本不需要改 `app.js`。
 
 ## 仍需讨论的问题
 
@@ -69,6 +95,9 @@
 ## 文件入口
 
 - `README.md`：travel repo 总览。
+- `index.html`：根域名落地页。
+- `yixing/index.html` + `yixing/styles.css` + `yixing/app.js`：拼配工具页面（v1 实现）。
+- `yixing/data/`：places / transport-edges / blocked-edges / presets（均为占位数据）。
 - `yixing/README.md`：宜兴项目总览。
 - `yixing/docs/experience-concept.md`：感官和视觉方向。
 - `yixing/docs/static-interaction-model.md`：静态交互和数据模型。
