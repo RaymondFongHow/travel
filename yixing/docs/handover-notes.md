@@ -5,6 +5,8 @@
 ## 已定方向
 
 - 最终是 GitHub Pages 可部署的纯静态网站。
+- GitHub repo 应是 `RaymondFongHow/travel`，宜兴项目位于 repo 内的 `yixing/`。
+- 目标访问路径是 `travel.raymondfonghow.com/yixing`。
 - 面向四位朋友的宜兴旅行，两男两女，其中包括用户。
 - 页面应该简约、现代、sans-serif。
 - 不做传统旅游攻略，也不先做固定行程。
@@ -38,6 +40,7 @@
 - 不要把宜兴简化成紫砂壶购物。
 - 不要把交通网络图做成自动最短路径规划器。
 - 不要使用需要后端或账号系统的方案。
+- 不要把站点写成只能部署在域名根路径；宜兴页面需要能在 `/yixing` 子路径下工作。
 - 不要把 locationCode 当成自动连线依据。
 - 不要默认住宿在山里；预算和高铁模式下城区 / 东氿更稳，但仍应作为卡片候选。
 
@@ -65,10 +68,10 @@
 
 ## 文件入口
 
-- `README.md`：项目总览。
-- `docs/experience-concept.md`：感官和视觉方向。
-- `docs/static-interaction-model.md`：静态交互和数据模型。
-- `docs/card-composition-model.md`：卡片拼配核心产品模型。
-- `docs/network-map-model.md`：交通时距网络图。
-- `docs/place-options-to-discuss.md`：地点讨论模板。
-
+- `README.md`：travel repo 总览。
+- `yixing/README.md`：宜兴项目总览。
+- `yixing/docs/experience-concept.md`：感官和视觉方向。
+- `yixing/docs/static-interaction-model.md`：静态交互和数据模型。
+- `yixing/docs/card-composition-model.md`：卡片拼配核心产品模型。
+- `yixing/docs/network-map-model.md`：交通时距网络图。
+- `yixing/docs/place-options-to-discuss.md`：地点讨论模板。
