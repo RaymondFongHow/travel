@@ -1,28 +1,29 @@
-/* 宜兴 · 感官拼配 —— 主题与版式
-   四个主题由 body[data-theme] + CSS variables 驱动，
-   基础色板来自 docs/static-interaction-model.md（做了对比度微调）。 */
+/* 宜兴之旅 —— 主题与版式
+   页面基调是素色（近白）；四个感官主题只作用于菜单（卡片池）区域，
+   由该区域元素上的 [data-theme] + CSS variables 驱动。
+   色板出自 docs/static-interaction-model.md（做了对比度微调）。 */
 
 :root {
-  /* 卡片主题固定色（不随页面主题变化） */
+  /* 卡片主题固定色（不随区域主题变化） */
   --c-dingshu: #b74b2b;
   --c-spring: #7fa32a;
   --c-bamboo: #2d8f83;
   --c-night: #d8a451;
 
-  /* 默认（接近丁蜀暖底） */
-  --bg: #f7f4ee;
+  /* 素色基调（近白） */
+  --bg: #fafaf9;
   --text: #1f1f1f;
   --accent: #b44a2c;
   --surface: #ffffff;
   --muted: #79706a;
-  --line: #e4ddd2;
+  --line: #e7e5e0;
   --chip-bg: rgba(0, 0, 0, 0.045);
   --warn: #b3541e;
   --warn-bg: rgba(179, 84, 30, 0.09);
   --shadow: 0 1px 3px rgba(30, 20, 10, 0.06);
 }
 
-body[data-theme="dingshu"] {
+[data-theme="dingshu"] {
   --bg: #f7eee7;
   --text: #26201b;
   --accent: #b74b2b;
@@ -31,7 +32,7 @@ body[data-theme="dingshu"] {
   --line: #e9d9cd;
 }
 
-body[data-theme="spring"] {
+[data-theme="spring"] {
   --bg: #f4f6df;
   --text: #252a19;
   --accent: #7fa32a;
@@ -40,7 +41,7 @@ body[data-theme="spring"] {
   --line: #e2e6c6;
 }
 
-body[data-theme="bamboo-water"] {
+[data-theme="bamboo-water"] {
   --bg: #edf5f2;
   --text: #1d2c29;
   --accent: #2d8f83;
@@ -49,7 +50,7 @@ body[data-theme="bamboo-water"] {
   --line: #d6e5e0;
 }
 
-body[data-theme="night"] {
+[data-theme="night"] {
   --bg: #181715;
   --text: #f4efe7;
   --accent: #d8a451;
@@ -157,7 +158,7 @@ button {
   border-color: var(--accent);
   color: #fff;
 }
-body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #181715; }
+[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #181715; }
 
 /* ---------- 布局 ---------- */
 
@@ -185,7 +186,18 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
 
 /* （视图系统的响应式规则在文件末尾，需要排在组件规则之后才能正确覆盖） */
 
-/* ---------- 卡片池 ---------- */
+/* ---------- 菜单（卡片池）：唯一带感官主题的区域 ---------- */
+
+#view-pool {
+  border-radius: 14px;
+  transition: background-color 0.45s ease, color 0.45s ease;
+}
+
+#view-pool[data-theme] {
+  background: var(--bg);
+  color: var(--text); /* night 等深色主题需要跟着换文字色 */
+  padding: 14px 16px 16px;
+}
 
 .pool-group { margin-bottom: 22px; }
 
@@ -410,6 +422,9 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
   color: var(--warn);
 }
 
+/* 没有直连边、按区域对兜底的粗估段 */
+.travel-chip--region { border-left-style: dotted; }
+
 .travel-chip small { display: block; color: var(--muted); font-size: 11px; }
 
 /* ---------- preset / 操作按钮 ---------- */
@@ -427,6 +442,82 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
 }
 
 .plan-actions button:hover, .ghost-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 模板行：preset 是起点不是答案，放在行程标题下、用小字说明 */
+.template-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 14px;
+}
+
+.template-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.template-row #preset-buttons { display: inline-flex; gap: 6px; }
+
+.template-row #preset-buttons button {
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.template-row #preset-buttons button:hover { border-color: var(--accent); color: var(--accent); }
+
+.template-note {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+/* ---------- 区域概览图（SVG，相对位置 + 时距连线） ---------- */
+
+.region-overview { margin-bottom: 22px; }
+
+.region-map-svg {
+  display: block;
+  width: 100%;
+  max-width: 380px;
+}
+
+.region-map-line {
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.region-map-time {
+  font-size: 9px;
+  fill: var(--muted);
+  text-anchor: middle;
+  opacity: 0.85;
+}
+
+.region-map-node circle {
+  fill: var(--muted);
+  opacity: 0.55;
+  transition: fill 0.25s ease, opacity 0.25s ease;
+}
+
+.region-map-node text {
+  font-size: 11px;
+  fill: var(--text);
+}
+
+.region-map-node.on circle {
+  fill: var(--accent);
+  opacity: 1;
+}
+
+.region-map-node.on text { font-weight: 600; }
 
 /* ---------- 路线图（普通 HTML，flex column） ---------- */
 
@@ -487,6 +578,14 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
 
 .graph-edge--heavy .graph-edge-line { background: var(--warn); opacity: 0.55; }
 .graph-edge--heavy .graph-edge-label { color: var(--warn); }
+
+/* 区域粗估段：虚线，与确认直连区分 */
+.graph-edge--region .graph-edge-line {
+  width: 0;
+  background: none;
+  border-left: 2px dashed var(--line);
+}
+.graph-edge--region.graph-edge--heavy .graph-edge-line { border-left-color: var(--warn); }
 
 .graph-break {
   margin-left: 7px;
@@ -648,7 +747,7 @@ body[data-theme="night"] .theme-menu button[aria-pressed="true"] { color: #18171
   transition: opacity 0.2s ease;
 }
 .primary-btn:hover { opacity: 0.88; }
-body[data-theme="night"] .primary-btn { color: #181715; }
+[data-theme="night"] .primary-btn { color: #181715; }
 
 /* ---------- 底部 tab 栏（移动端） ---------- */
 
@@ -739,6 +838,16 @@ body[data-theme="night"] .primary-btn { color: #181715; }
   white-space: nowrap;
 }
 
+/* 选卡后飞向底部悬置区的影子 */
+.fly-ghost {
+  position: fixed;
+  z-index: 70;
+  pointer-events: none;
+  margin: 0;
+  opacity: 0.9;
+  transition: transform 0.38s cubic-bezier(0.2, 0.7, 0.3, 1), opacity 0.38s ease;
+}
+
 body.drag-active { cursor: grabbing; }
 
 body.drag-active .slot {
@@ -758,6 +867,14 @@ body.drag-active .slot {
 @media (max-width: 1023px) {
   /* 页头保持紧凑；这段内容由简介视图承担 */
   .header-tagline { display: none; }
+
+  /* 菜单着色时整幅铺开，像走进那种氛围 */
+  #view-pool[data-theme] {
+    margin-left: -18px;
+    margin-right: -18px;
+    border-radius: 0;
+    padding: 14px 18px 18px;
+  }
 
   .view { display: none; }
   body[data-view="intro"] #view-intro,
@@ -785,6 +902,8 @@ body.drag-active .slot {
   }
   #view-intro { display: none; } /* 简介内容桌面端已由页头 tagline 与各区说明覆盖 */
   .tab-bar { display: none; }
+  /* 桌面列宽有限：感官菜单换行铺开，避免横向滚动被右缘截断 */
+  .theme-menu { flex-wrap: wrap; overflow-x: visible; }
   .snackbar { display: none; } /* snackbar 是移动端机制，桌面走 toast */
   .pool-section, .plan-section, .graph-section { margin-bottom: 0; }
   .hint-bar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }

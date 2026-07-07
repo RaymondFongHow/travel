@@ -24,6 +24,10 @@
   var EDGES = YXD.transportEdges || [];
   var BLOCKED = YXD.blockedEdges || [];
   var PRESETS = YXD.presets || [];
+  var REGION_TIMES = YXD.regionTimes || {};
+  var SAME_REGION = YXD.sameRegionTime || null;
+  var REGION_COORDS = YXD.regionCoords || {};
+  var REGION_MAP_EDGES = YXD.regionMapEdges || [];
 
   var STORAGE_KEY = "yixing-draft-v1";
   var THEMES = ["dingshu", "spring", "bamboo-water", "night"];
@@ -121,17 +125,31 @@
     return card && card.type !== "note" && card.mapNode && card.locationCode !== "CURRENT";
   }
 
+  // 区域粗估：两点没有 direct edge 时按 locationCode 对兜底，行程里永远有个底
+  function regionEstimate(fromCard, toCard, regionTimes, sameRegion) {
+    var a = fromCard.locationCode;
+    var b = toCard.locationCode;
+    if (!a || !b || a === "TBD" || b === "TBD") return null;
+    if (a === b) {
+      return sameRegion ? { minutes: sameRegion.minutes, range: sameRegion.range, same: true } : null;
+    }
+    var hit = regionTimes[a + ":" + b] || regionTimes[b + ":" + a];
+    return hit ? { minutes: hit.minutes, range: hit.range, same: false } : null;
+  }
+
   /**
    * 根据当前拼配顺序生成路线图数据。
-   * 输入选中卡片（按槽位顺序）、直连边、禁连说明；
-   * 输出 { nodes, edges, breaks, segments }，segments[i] 描述 nodes[i] 与 nodes[i+1] 之间的关系。
-   * 纯函数，不接触 DOM。
+   * 相邻两点的时间来源按优先级：direct edge > 禁连说明（断点）> 区域粗估 > 需单独确认。
+   * 输出 { nodes, edges, breaks, segments, regionCount, regionMinutes }，
+   * segments[i] 描述 nodes[i] 与 nodes[i+1] 之间的关系。纯函数，不接触 DOM。
    */
-  function buildRouteGraph(selectedItems, transportEdges, blockedEdges) {
+  function buildRouteGraph(selectedItems, transportEdges, blockedEdges, regionTimes, sameRegion) {
     var nodes = selectedItems.filter(isRouteNode);
     var edges = [];
     var breaks = [];
     var segments = [];
+    var regionCount = 0;
+    var regionMinutes = 0;
 
     for (var i = 0; i < nodes.length - 1; i += 1) {
       var from = nodes[i];
@@ -145,17 +163,40 @@
       }
 
       var blocked = findBlockedEdge(from.id, to.id, blockedEdges);
-      var brk = {
+      if (blocked) {
+        var brk = {
+          from: from.id,
+          to: to.id,
+          reason: blocked.reason,
+          suggestedVia: blocked.suggestedVia || []
+        };
+        breaks.push(brk);
+        segments.push({ kind: "break", fromId: from.id, toId: to.id, brk: brk });
+        continue;
+      }
+
+      var est = regionEstimate(from, to, regionTimes || {}, sameRegion);
+      if (est) {
+        regionCount += 1;
+        regionMinutes += est.minutes;
+        segments.push({ kind: "region", fromId: from.id, toId: to.id, est: est });
+        continue;
+      }
+
+      var brk2 = {
         from: from.id,
         to: to.id,
-        reason: blocked ? blocked.reason : "这两点之间还没有确认的直接交通。",
-        suggestedVia: blocked && blocked.suggestedVia ? blocked.suggestedVia : []
+        reason: "这两点之间还没有确认的直接交通。",
+        suggestedVia: []
       };
-      breaks.push(brk);
-      segments.push({ kind: "break", fromId: from.id, toId: to.id, brk: brk });
+      breaks.push(brk2);
+      segments.push({ kind: "break", fromId: from.id, toId: to.id, brk: brk2 });
     }
 
-    return { nodes: nodes, edges: edges, breaks: breaks, segments: segments };
+    return {
+      nodes: nodes, edges: edges, breaks: breaks, segments: segments,
+      regionCount: regionCount, regionMinutes: regionMinutes
+    };
   }
 
   // 分钟 -> 连线像素长度，带上下限（docs/network-map-model.md）
@@ -166,17 +207,17 @@
     return Math.max(minLength, Math.min(maxLength, minutes * pxPerMinute));
   }
 
-  function totalEdgeMinutes(graph) {
+  function totalTravelMinutes(graph) {
     var total = 0;
     graph.edges.forEach(function (e) { total += e.minutes || 0; });
-    return total;
+    return total + (graph.regionMinutes || 0);
   }
 
   /* ================= 3. 状态与持久化 ================= */
 
   // filter：感官菜单的双重角色之二 —— 筛选卡片池（"all" 或某个主题）。
   // 只影响卡片池显示；已放入槽位的卡和路线图不受筛选影响。
-  var state = { theme: "dingshu", filter: "all", view: "intro", slots: {} };
+  var state = { filter: "all", view: "intro", slots: {} };
   SLOTS.forEach(function (s) { state.slots[s.id] = null; });
 
   // 点选拼配：selection = { cardId } 或 null（来源槽位随时可从 slots 推导）
@@ -199,12 +240,12 @@
   }
 
   function currentGraph() {
-    return buildRouteGraph(selectedItems(), EDGES, BLOCKED);
+    return buildRouteGraph(selectedItems(), EDGES, BLOCKED, REGION_TIMES, SAME_REGION);
   }
 
   function save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, theme: state.theme, filter: state.filter, view: state.view, slots: state.slots }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, filter: state.filter, view: state.view, slots: state.slots }));
     } catch (err) { /* 隐私模式等场景下静默失败 */ }
   }
 
@@ -216,7 +257,6 @@
     try { data = JSON.parse(raw); } catch (err) { return; }
     if (!data || typeof data !== "object") return;
 
-    if (THEMES.indexOf(data.theme) !== -1) state.theme = data.theme;
     if (data.filter === "all" || THEMES.indexOf(data.filter) !== -1) state.filter = data.filter;
     if (VIEWS.indexOf(data.view) !== -1) state.view = data.view; // 回访者接着上次的视图
 
@@ -246,6 +286,9 @@
   var presetWrapEl = document.getElementById("preset-buttons");
   var snackbarEl = document.getElementById("snackbar");
   var snackbarTextEl = document.getElementById("snackbar-text");
+  var poolSectionEl = document.getElementById("view-pool");
+  var regionMapEl = document.getElementById("region-map");
+  var importFileEl = document.getElementById("import-file");
 
   function el(tag, className, text) {
     var node = document.createElement(tag);
@@ -264,12 +307,14 @@
     return "约 " + card.durationMin + " 分";
   }
 
-  function setTheme(theme) {
-    if (THEMES.indexOf(theme) === -1) return;
-    state.theme = theme;
-    document.body.setAttribute("data-theme", theme);
-    renderThemeMenu();
-    save();
+  // 主题只作用于菜单（卡片池）区域：筛选某个感官时该区着色，
+  // 「全部」与其余视图始终素色（用户决定：出了菜单就是白）
+  function applyPoolTheme() {
+    if (state.filter !== "all" && THEMES.indexOf(state.filter) !== -1) {
+      poolSectionEl.setAttribute("data-theme", state.filter);
+    } else {
+      poolSectionEl.removeAttribute("data-theme");
+    }
   }
 
   // 视图切换只在移动端有布局效果；桌面端三栏常驻，data-view 不影响显示
@@ -398,7 +443,7 @@
       var removeBtn = el("button", "slot-remove", "移出");
       removeBtn.setAttribute("type", "button");
       removeBtn.setAttribute("data-remove-slot", slot.id);
-      removeBtn.setAttribute("aria-label", "把「" + card.title + "」移回卡片池");
+      removeBtn.setAttribute("aria-label", "把「" + card.title + "」移出行程");
       occ.appendChild(removeBtn);
       node.appendChild(occ);
 
@@ -428,6 +473,13 @@
       var text = "下一站 " + toName + " · " + e.label + " · " + mode;
       if ((e.minutes || 0) >= HEAVY_EDGE_MIN) text += " · 移动偏重";
       return el("div", "travel-chip", text);
+    }
+
+    if (seg.kind === "region") {
+      var est = seg.est;
+      var rText = "下一站 " + toName + " · 约 " + est.range[0] + "-" + est.range[1] + " 分（"
+        + (est.same ? "同区粗估" : "区域粗估") + "）· 打车";
+      return el("div", "travel-chip travel-chip--region", rText);
     }
 
     var node = el("div", "travel-chip travel-chip--break");
@@ -492,6 +544,18 @@
       return node;
     }
 
+    if (seg.kind === "region") {
+      var est = seg.est;
+      var heavyR = est.minutes >= HEAVY_EDGE_MIN;
+      var rNode = el("div", "graph-edge graph-edge--region" + (heavyR ? " graph-edge--heavy" : ""));
+      rNode.style.height = edgeLength(est.minutes) + "px";
+      rNode.appendChild(el("span", "graph-edge-line"));
+      var rLabel = "约 " + est.range[0] + "-" + est.range[1] + " 分（"
+        + (est.same ? "同区" : "区域") + "粗估）" + (heavyR ? " · 移动偏重" : "");
+      rNode.appendChild(el("span", "graph-edge-label", rLabel));
+      return rNode;
+    }
+
     var brkEl = el("div", "graph-break");
     brkEl.appendChild(el("strong", null, "需单独确认"));
     var detail = seg.brk.reason;
@@ -512,6 +576,7 @@
     if (!graph.nodes.length) {
       graphEl.appendChild(el("p", "graph-empty", "还没有可画的路线。往时间槽里放两个地点试试。"));
       summaryEl.textContent = "";
+      updateRegionHighlight(graph);
       return;
     }
 
@@ -522,11 +587,82 @@
       }
     });
 
-    var total = totalEdgeMinutes(graph);
+    var total = totalTravelMinutes(graph);
     var parts = [];
-    if (total > 0) parts.push("已连路段合计 约 " + total + " 分钟（估 · 低可信度）");
+    if (total > 0) parts.push("全程移动合计 约 " + total + " 分钟（粗估）");
+    if (graph.regionCount) parts.push(graph.regionCount + " 段为区域粗估");
     if (graph.breaks.length) parts.push(graph.breaks.length + " 段需单独确认");
     summaryEl.textContent = parts.join(" · ");
+
+    updateRegionHighlight(graph);
+  }
+
+  /* ---------- 区域概览图（SVG，静态节点 + 时距连线） ---------- */
+
+  function renderRegionMap() {
+    if (!regionMapEl) return;
+    var codes = Object.keys(REGION_COORDS);
+    if (!codes.length) return;
+    var svgNS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 300 270");
+    svg.setAttribute("class", "region-map-svg");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "各区域相对位置与打车时距概览");
+
+    // 只画时间较短的“天然邻居”，全画 21 条会糊成一团
+    REGION_MAP_EDGES.forEach(function (key) {
+      var pair = key.split(":");
+      var a = REGION_COORDS[pair[0]];
+      var b = REGION_COORDS[pair[1]];
+      var t = REGION_TIMES[key] || REGION_TIMES[pair[1] + ":" + pair[0]];
+      if (!a || !b || !t) return;
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", a.x);
+      line.setAttribute("y1", a.y);
+      line.setAttribute("x2", b.x);
+      line.setAttribute("y2", b.y);
+      line.setAttribute("class", "region-map-line");
+      svg.appendChild(line);
+      var label = document.createElementNS(svgNS, "text");
+      label.setAttribute("x", (a.x + b.x) / 2);
+      label.setAttribute("y", (a.y + b.y) / 2 - 3);
+      label.setAttribute("class", "region-map-time");
+      label.textContent = t.minutes + "'";
+      svg.appendChild(label);
+    });
+
+    codes.forEach(function (code) {
+      var c = REGION_COORDS[code];
+      var g = document.createElementNS(svgNS, "g");
+      g.setAttribute("class", "region-map-node");
+      g.setAttribute("data-region", code);
+      var dot = document.createElementNS(svgNS, "circle");
+      dot.setAttribute("cx", c.x);
+      dot.setAttribute("cy", c.y);
+      dot.setAttribute("r", 5);
+      g.appendChild(dot);
+      var name = document.createElementNS(svgNS, "text");
+      name.setAttribute("x", c.x + 9);
+      name.setAttribute("y", c.y + 4);
+      name.textContent = locLabel(code);
+      g.appendChild(name);
+      svg.appendChild(g);
+    });
+
+    regionMapEl.innerHTML = "";
+    regionMapEl.appendChild(svg);
+  }
+
+  // 概览图上点亮当前行程涉及的区域
+  function updateRegionHighlight(graph) {
+    if (!regionMapEl) return;
+    var active = {};
+    graph.nodes.forEach(function (card) { active[card.locationCode] = true; });
+    var nodes = regionMapEl.querySelectorAll(".region-map-node");
+    for (var i = 0; i < nodes.length; i += 1) {
+      nodes[i].classList.toggle("on", !!active[nodes[i].getAttribute("data-region")]);
+    }
   }
 
   function renderHintBar() {
@@ -644,7 +780,7 @@
     } else if (sourceSlotId) {
       msg = "已移动到 " + slot.label;
     } else if (displacedId && cardById[displacedId]) {
-      msg = "「" + cardById[displacedId].title + "」已移回卡片池";
+      msg = "「" + cardById[displacedId].title + "」已移回菜单";
     } else {
       msg = "已放入 " + slot.label;
     }
@@ -669,10 +805,36 @@
     if (selection && selection.cardId === cardId) clearSelection();
     save();
     renderAll();
-    if (cardById[cardId]) toast("「" + cardById[cardId].title + "」已移回卡片池");
+    if (cardById[cardId]) toast("「" + cardById[cardId].title + "」已移出行程");
   }
 
-  function onCardTap(cardId) {
+  // 选中反馈动画：卡片影子滑向底部悬置区（hint bar 的位置），再进行程视图
+  function animateCardToDock(cardEl) {
+    if (!cardEl) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var rect = cardEl.getBoundingClientRect();
+    if (!rect.width) return;
+    var ghost = cardEl.cloneNode(true);
+    ghost.className += " fly-ghost";
+    ghost.style.left = rect.left + "px";
+    ghost.style.top = rect.top + "px";
+    ghost.style.width = rect.width + "px";
+    document.body.appendChild(ghost);
+    var dx = window.innerWidth / 2 - (rect.left + rect.width / 2);
+    var dy = window.innerHeight - 96 - rect.top;
+    // 两次 rAF：先让初始位置渲染出来，transition 才有起点
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        ghost.style.transform = "translate(" + dx + "px, " + dy + "px) scale(0.4)";
+        ghost.style.opacity = "0";
+      });
+    });
+    setTimeout(function () {
+      if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    }, 420);
+  }
+
+  function onCardTap(cardId, cardEl) {
     var card = cardById[cardId];
     if (!card) return;
     if (selection && selection.cardId === cardId) {
@@ -682,9 +844,9 @@
     }
     hideSnackbar();
     selection = { cardId: cardId };
-    setTheme(card.theme); // 点选卡片时页面切到该卡主题
+    animateCardToDock(cardEl); // 克隆要在重渲染替换元素之前做
     renderAll();
-    // 移动端：选中即跳到行程拼配，下一步点槽位放入（hint bar 可取消）
+    // 移动端：选中即跳到行程视图，下一步点槽位放入（hint bar 可取消）
     if (isMobile() && state.view !== "plan") setView("plan");
   }
 
@@ -698,7 +860,7 @@
       onCardTap(occupant); // 点已放置的卡 = 选中它准备移动
       return;
     }
-    toast("先在卡片池点选一张卡片，再点这个槽位");
+    toast("先在菜单点选一张卡片，再点这个槽位");
   }
 
   function applyPreset(presetId) {
@@ -725,6 +887,64 @@
     renderAll();
     toast(preset.note || (preset.title + " 已载入"));
   }
+
+  /* ---------- 行程的导出 / 导入（本地 JSON 文件，便于朋友间传） ---------- */
+
+  function exportDraft() {
+    var payload = { v: 1, site: "yixing", slots: state.slots };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "yixing-itinerary.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast("已导出行程文件");
+  }
+
+  // 先整体校验再落盘：至少要有一张能认出的卡，避免坏文件清空现有行程
+  function applyImportedSlots(data) {
+    if (!data || typeof data !== "object" || !data.slots || typeof data.slots !== "object") return false;
+    var next = {};
+    var seen = {};
+    var found = false;
+    SLOTS.forEach(function (s) {
+      var id = data.slots[s.id];
+      if (typeof id === "string" && cardById[id] && !seen[id]) {
+        next[s.id] = id;
+        seen[id] = true;
+        found = true;
+      } else {
+        next[s.id] = null;
+      }
+    });
+    if (!found) return false;
+    state.slots = next;
+    return true;
+  }
+
+  importFileEl.addEventListener("change", function () {
+    var file = importFileEl.files && importFileEl.files[0];
+    importFileEl.value = ""; // 允许连续导入同一个文件
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data = null;
+      try { data = JSON.parse(String(reader.result)); } catch (err) { /* 落到下面的报错 */ }
+      hideSnackbar();
+      if (data && applyImportedSlots(data)) {
+        clearSelection();
+        save();
+        renderAll();
+        toast("行程已导入");
+      } else {
+        toast("读不懂这个文件：需要本站导出的行程 JSON", "warn");
+      }
+    };
+    reader.readAsText(file);
+  });
 
   function resetDraft() {
     if (!window.confirm("清空当前拼配草稿？")) return;
@@ -753,12 +973,12 @@
     var gotoBtn = e.target.closest("[data-goto]");
     if (gotoBtn) { setView(gotoBtn.getAttribute("data-goto")); return; }
 
-    // 简介里的感官入口：切主题 + 筛选卡片池，并跳到卡片池
+    // 简介里的感官入口：筛选菜单并给菜单区着色，跳到菜单
     var themeGo = e.target.closest("[data-theme-go]");
     if (themeGo) {
-      var gt = themeGo.getAttribute("data-theme-go");
-      state.filter = gt;
-      setTheme(gt); // setTheme 内部会 save
+      state.filter = themeGo.getAttribute("data-theme-go");
+      applyPoolTheme();
+      save();
       renderPool();
       renderThemeMenu();
       setView("pool");
@@ -779,16 +999,17 @@
 
     var themeBtn = e.target.closest("[data-theme-btn]");
     if (themeBtn) {
-      var t = themeBtn.getAttribute("data-theme-btn");
-      state.filter = t; // 菜单点选 = 切主题 + 筛选卡片池
-      setTheme(t);
+      state.filter = themeBtn.getAttribute("data-theme-btn"); // 筛选 + 菜单区着色
+      applyPoolTheme();
+      save();
       renderPool();
       renderThemeMenu();
       return;
     }
 
     if (e.target.closest("[data-filter-all]")) {
-      state.filter = "all"; // 恢复完整卡片池，页面主题保持不变
+      state.filter = "all"; // 全部 = 素色完整菜单
+      applyPoolTheme();
       save();
       renderPool();
       renderThemeMenu();
@@ -799,6 +1020,8 @@
     if (presetBtn) { applyPreset(presetBtn.getAttribute("data-preset")); return; }
 
     if (e.target.closest("#reset-btn")) { resetDraft(); return; }
+    if (e.target.closest("#export-btn")) { exportDraft(); return; }
+    if (e.target.closest("#import-btn")) { importFileEl.click(); return; }
 
     if (e.target.closest("[data-cancel-selection]")) {
       clearSelection();
@@ -809,18 +1032,11 @@
     var removeBtn = e.target.closest("[data-remove-slot]");
     if (removeBtn) { removeFromSlot(removeBtn.getAttribute("data-remove-slot")); return; }
 
-    var graphNode = e.target.closest("[data-graph-node]");
-    if (graphNode) {
-      var gCard = cardById[graphNode.getAttribute("data-card-id")];
-      if (gCard) setTheme(gCard.theme);
-      return;
-    }
-
     var slotEl = e.target.closest(".slot");
     if (slotEl) { onSlotTap(slotEl.getAttribute("data-slot-id")); return; }
 
     var cardEl = e.target.closest("[data-drag-card]");
-    if (cardEl) { onCardTap(cardEl.getAttribute("data-card-id")); return; }
+    if (cardEl) { onCardTap(cardEl.getAttribute("data-card-id"), cardEl); return; }
   });
 
   /* ---------- 拖拽（pointer events，触屏长按提起） ---------- */
@@ -976,9 +1192,10 @@
   /* ================= 初始化 ================= */
 
   load();
-  document.body.setAttribute("data-theme", state.theme);
   document.body.setAttribute("data-view", state.view);
+  applyPoolTheme();
   renderTabBar();
   renderPresetButtons();
+  renderRegionMap();
   renderAll();
 })();

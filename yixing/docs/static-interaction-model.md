@@ -180,13 +180,18 @@ const places = [
 
 ## 交通时间数据
 
-交通时间的唯一数据源是 `transportEdges`（见 `docs/network-map-model.md`），按地点 id 记录确认过的直接交通。早期草案曾用区域间矩阵（`"CENTER:DS": "25-35 min"` 这类）做粗提示，现已废弃：同一段交通只保留一个数据来源。
+交通时间分两层（2026-07-07 用户确认：估算必须能落到 locationCode，行程里永远有个底）：
 
-当用户把两个地点拖到上下相邻的行程板块里：
+1. `transportEdges`（见 `docs/network-map-model.md`）：按地点 id 记录确认过的直接交通，优先使用。
+2. `data/region-times.js`：所有 locationCode 两两穷举的区域粗估矩阵，外加同区短驳兜底；缺 direct edge 时退回这一层。该文件还带区域概览图坐标，用于路线图顶部的相对位置参考图。
 
-- 如果两点 id 之间存在 direct edge，显示该 edge 的时间范围。
-- 如果其中一张卡片 `locationCode` 为 `CURRENT`（自由时间等），不触发交通提示。
-- 如果查不到 edge，显示“需单独确认”，并在交通图上显示断点。
+相邻两张卡片的时间来源优先级：
+
+- direct edge：显示该 edge 的时间范围。
+- 命中 `blockedEdges`：显示断点与建议中转，不退回区域估（这类组合本就不该直连）。
+- 区域粗估 / 同区粗估：虚线显示，标注「区域粗估」。
+- 其中一张卡 `locationCode` 为 `CURRENT`（自由时间等）：不触发交通提示。
+- `locationCode` 为 `TBD` 或矩阵缺对：显示“需单独确认”断点。
 
 ## 交通时距网络图
 
