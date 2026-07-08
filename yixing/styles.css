@@ -475,23 +475,39 @@ button {
 
 .plan-actions button:hover, .ghost-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+/* 动作按钮（导入/导出/清空/新增/恢复默认/保存当前）：与模板/方案的“可选项药丸”区分开 —— 方角、实底、深字 */
+.action-btn,
+.plan-actions .action-btn {
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: var(--chip-bg);
+  color: var(--text);
+  font-weight: 500;
+}
+.action-btn:hover,
+.plan-actions .action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--chip-bg); }
+
 /* 模板行：preset 是起点不是答案，放在行程标题下、用小字说明 */
 .template-row {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 10px;
   margin: 8px 0 14px;
 }
 
 .template-label {
+  flex: 0 0 auto;
+  padding-top: 6px;   /* 与右侧药丸首行文字对齐 */
   font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--muted);
 }
 
-.template-row #preset-buttons,
-.template-row #format-buttons { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* 标签右侧的内容列：药丸只在这一列里换行，不会跑到“格式/方案”字样正下方 */
+.template-items { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+.template-row #preset-buttons { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
 .template-row #preset-buttons button,
 .template-row #format-buttons button {
@@ -855,6 +871,9 @@ button {
 .primary-btn:hover { opacity: 0.88; }
 [data-theme="night"] .primary-btn { color: #181715; }
 
+/* 简介里的「开始拼」和上面的步骤列表留出呼吸空间 */
+.view-intro .primary-btn { margin-top: 22px; }
+
 /* ---------- 底部 tab 栏（移动端） ---------- */
 
 .tab-bar {
@@ -1009,6 +1028,65 @@ button {
   justify-content: flex-end;
   gap: 8px;
 }
+
+.overlay-actions-spacer { flex: 1; }
+
+/* 卡片编辑表单 */
+.overlay-panel--form { max-width: 440px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field--full { grid-column: 1 / -1; }
+.field > span { font-size: 11.5px; color: var(--muted); }
+
+.field select,
+.field input,
+.field textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: inherit;
+}
+
+.field select:focus,
+.field input:focus,
+.field textarea:focus {
+  outline: 2px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.field textarea { resize: vertical; }
+
+.field--check { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; }
+.field--check input { width: auto; }
+
+.cf-times { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.cf-times > span { flex: 1 0 100%; }
+.cf-times label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+
+/* 卡片上的编辑入口 */
+.card-top-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+.card-edit-btn {
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+.card-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* 选卡后飞向底部悬置区的影子 */
 .fly-ghost {

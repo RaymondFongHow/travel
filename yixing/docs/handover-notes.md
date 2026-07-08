@@ -8,10 +8,10 @@
 
 - `index.html`（repo 根）：travel.raymondfonghow.com 的极简落地页，相对链接到 `yixing/`。
 - `yixing/index.html` / `yixing/styles.css` / `yixing/app.js`：单页拼配工具。
-- `yixing/data/places.js`：16 张占位卡片（含 2 张住宿、自由时间 / Saboteur、交通缓冲）。
+- `yixing/data/places.js`：30 张卡片（含 2 张住宿、自由时间 / Saboteur、交通缓冲、2 张宜兴站到达 / 返程）。2026-07-09 按群里补充分两批加：第一批 11 张候选（仍 `pending`）—— 丁蜀线的黄龙山矿址公园 / 蜀山风景区 / Tide Coffee / 陶喜艺术餐厅，春日线的知春卢仝山房，龙池山一线的龙池山风景区 / 自行车公园 / 观景平台 / 不介·黑松林，夜晚线的唐味与宜兴站（拆成「宜兴站 · 到达」`yixing-station` 与「宜兴站 · 返程」`yixing-station-return` 两张 —— 草稿内卡片 id 全局去重，同一张不能既在到达日又在返程日，高铁往返本就是两次事件，故分两张分别作首尾）；第二批 2 张景点 —— 张公洞（湖㳇镇孟峰山麓溶洞，YX；上线核实过：属湖㳇而非张渚 / 善卷洞）、龙背山森林公园（城区南 / 高铁站北，CENTER）。地点归属均用网络核对过：黄龙山矿址公园=丁蜀（DS）、不介·黑松林在龙池山自行车公园内（LC）、唐味在万达周边城区（CENTER）、卢仝山房归入阳羡湖㳇（YX）；Tide Coffee 未查到确切地址，暂挂丁蜀陶二厂片区（DS，仍 pending）。同批把已确认要去的 宜兴竹海 / 善卷洞 / 陶瓷博物馆 去掉 `pending` 并把开放时间 / 公交线 / 门票等信息写进 summary / cautions（卡片 schema 没有单独的时间 / 票价字段，故走自由文本）。
 - `yixing/data/transport-edges.js`：23 条占位直连边，全部 `confidence: "low"`，label 带「估」。
 - `yixing/data/blocked-edges.js`：3 条示例禁连关系（含建议中转）。
-- `yixing/data/presets.js`：周五晚到 / 周六早到两个 preset（只是起点，含刻意留白）。
+- `yixing/data/presets.js`：三个示例模板（只是起点，含刻意留白）—— 周五晚到 / 周六早到 / 溶洞与夜景（2026-07-09 按群里 7.25–7.26 草案加：d1 陶博馆→善卷洞→龙背山，d2 竹海→张公洞）。三个模板都以「宜兴站 · 到达」开头（fri 在 arrival 日、sat 在 d1）、以「宜兴站 · 返程」结尾（d3），呼应高铁往返。
 
 已实现的功能：
 
@@ -56,6 +56,16 @@ v1.3（用户反馈批次，2026-07-07）：
 - 拖拽 ghost 提起后伸展到该卡在网格里将占据的高度（行高实测自可见空时间槽，span = ceil(durationMin/60)），顶端对齐手指即开始时间；动画用强制 reflow 触发 transition，不依赖 rAF（预览环境里 rAF 可能不触发）。
 - 区域概览图改为按真实经纬度投影排版（cos31° 校正纵横比，viewBox 300×440，占满整列），标签朝向按数据手工指定（`side`），验证过零重叠；线上数字为分钟粗估。坐标为近似值，记录在 `data/region-times.js` 注释里。
 - 文案清理：删掉鸡汤式语句（简介留白宣言、preset「不是答案」、页脚 Saboteur 一句等），只保留操作说明。
+
+v1.7（可编辑菜单，2026-07-09）：
+
+- 菜单（卡池）从只读改为可编辑，做成和行程对称的模式：`data/places.js` 只是「仓库默认种子」（`DEFAULT_PLACES`），运行时的工作卡池是 `PLACES`，首访从默认播种、之后可增删改并存到 localStorage（`yixing-pool-v1`，格式 `{v,site,kind:"pool",places}`）。`cardById` 不再在加载时一次性建好，改由 `rebuildIndex()` 按当前 `PLACES` 随时重建；初始化顺序改为先 `loadPool()` 再 `load()`（草稿清洗依赖 cardById）。
+- 首访不落盘：`loadPool()` 播种后不 `persistPool()`，所以没编辑过的用户仍能拿到仓库后续新增的卡；一旦编辑/新增/删除/导入才写入 localStorage 并从此以本地为准。「恢复默认」（`resetPool`）用 `normalizePool(DEFAULT_PLACES)` 覆盖回仓库版本。
+- 菜单区标题栏加了 `新增卡片 / 导入 / 导出 / 恢复默认`（复用 `.plan-actions` 样式），每张卡右上角加「编辑」按钮（`data-edit-card`，pointerdown 与 click 都特判，避免触发拖拽/选卡）。
+- 卡片编辑是表单弹窗（`#card-overlay`，复用 `.overlay`）：标题 / 类型 / 主题 / 位置 / 时长 / 暑热 / 需预约 / 适合时段（多选）/ 标签 / 简介 / 待确认。下拉项由 `initCardForm()` 从 `TYPE_LABELS`、`THEME_GROUPS`、`LOC_LABELS` 动态填充，中文标签不再重复写在 HTML。进阶字段（experienceValue/visualValue/budgetLevel/groupFit/cardRole/mapNode/cautions/sourceLinks/住宿三项）编辑时原样保留、新建时由 `normalizeCard` 补默认；改主题/位置时 mapNode 会重算。新卡 id 用 `genCardId()` 时间戳生成、不可改（保护方案/草稿里的引用）。
+- 导入让用户选替换或合并（`#menu-import-overlay`：整体替换 / 合并追加）；合并按 id 覆盖同名、追加新卡。任何来源都过 `normalizeCard`/`normalizePool` 校验（坏卡丢弃、无标题丢弃），坏文件不动现有菜单。导出文件名 `yixing-menu.json`。
+- 删除卡片或改动卡池后调用 `purgeMissingFromDraft()`，把行程 `state.days`/`state.stays` 里已不存在的卡 id 一并清掉；`buildDaySchedule` 和 `selectedItems` 本来也会跳过缺失卡，双保险。
+- `renderPool` 增加「其他」兜底组：主题不在四感官里的卡（导入或改出来的）在「全部」下也看得到、能编辑。
 
 重要：**当前所有地点、交通时间、禁连关系都是占位草稿**，来自 `docs/place-options-to-discuss.md` 的候选方向，尚未经过四人讨论确认，也未用高德 / 百度核实。占位卡片带 `pending: true` 字段（UI 显示「待确认」）；该字段是实现阶段对 schema 的最小扩展。
 

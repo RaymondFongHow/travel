@@ -18,10 +18,10 @@ window.YX.presets = [
     format: "fri",
     note: "周五晚上高铁到，先简单吃一碗，第二天进丁蜀线。",
     days: {
-      arrival: ["noodle-shop"],
+      arrival: ["yixing-station", "noodle-shop"],
       d1: ["shushan-old-street", "zisha-workshop", "yibang-dinner"],
       d2: ["tea-fields", "free-time-saboteur", "dongjiu-lake"],
-      d3: ["taoerchang"]
+      d3: ["taoerchang", "yixing-station-return"]
     },
     stays: { d1: "stay-center", d2: "stay-dingshu-lake" }
   },
@@ -31,10 +31,22 @@ window.YX.presets = [
     format: "sat",
     note: "周六早上高铁到，放下行李直接进丁蜀。第二晚住宿留白待讨论。",
     days: {
-      d1: ["transport-buffer", "shushan-old-street", "taoerchang", "yibang-dinner"],
+      d1: ["yixing-station", "shushan-old-street", "taoerchang", "yibang-dinner"],
       d2: ["bamboo-sea", "shanjuan-cave", "free-time-saboteur"],
-      d3: ["dongjiu-lake", "noodle-shop"]
+      d3: ["dongjiu-lake", "noodle-shop", "yixing-station-return"]
     },
     stays: { d1: "stay-center", d2: null }
+  },
+  {
+    id: "caves-and-nightview",
+    title: "示例 · 溶洞与夜景",
+    format: "sat",
+    note: "周六早高铁到，上午陶博馆避暑、下午善卷洞、傍晚龙背山看夜景；周日竹海配张公洞。",
+    days: {
+      d1: ["yixing-station", "ceramics-museum", "shanjuan-cave", "longbeishan-forest-park"],
+      d2: ["bamboo-sea", "zhanggong-cave"],
+      d3: ["yixing-station-return"]
+    },
+    stays: { d1: "stay-center", d2: "stay-center" }
   }
 ];

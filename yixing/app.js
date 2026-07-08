@@ -20,7 +20,8 @@
   /* ================= 1. 数据与常量 ================= */
 
   var YXD = window.YX || {};
-  var PLACES = YXD.places || [];
+  var DEFAULT_PLACES = YXD.places || [];   // 仓库自带的默认卡池（只读种子，「恢复默认」用它）
+  var PLACES = [];                         // 工作卡池：首访从默认播种，之后存 localStorage，可增删改
   var EDGES = YXD.transportEdges || [];
   var BLOCKED = YXD.blockedEdges || [];
   var PRESETS = YXD.presets || [];
@@ -30,6 +31,7 @@
   var REGION_MAP_EDGES = YXD.regionMapEdges || [];
 
   var STORAGE_KEY = "yixing-draft-v1";
+  var POOL_KEY = "yixing-pool-v1";   // 用户的工作卡池（菜单）持久化位置
   var THEMES = ["dingshu", "spring", "bamboo-water", "night"];
   var VIEWS = ["intro", "pool", "plan", "graph"]; // 移动端四个子页；桌面端三栏并排
   var HEAVY_EDGE_MIN = 60; // 达到这个分钟数即提示“移动偏重”
@@ -104,8 +106,7 @@
     return LOC_LABELS[code] || code;
   }
 
-  var cardById = {};
-  PLACES.forEach(function (p) { cardById[p.id] = p; });
+  var cardById = {};   // 由 rebuildIndex() 依据当前 PLACES 重建（见「卡池」一节）
 
   /* ================= 2. 纯数据逻辑（与渲染分离） ================= */
 
@@ -357,6 +358,122 @@
     return { days: rawDays, stays: rawStays };
   }
 
+  /* ---------- 卡池（菜单）：首访从仓库默认播种，之后存 localStorage，可增删改 ---------- */
+
+  var CARD_TYPES = ["place", "experience", "food", "stay", "free-time", "buffer"];
+  var HEAT_LEVELS = ["none", "low", "medium", "high"];
+  var BEST_TIMES = ["morning", "afternoon", "evening", "night"];
+
+  function rebuildIndex() {
+    cardById = {};
+    PLACES.forEach(function (p) { cardById[p.id] = p; });
+  }
+
+  function genCardId() {
+    return "card-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 46656).toString(36);
+  }
+
+  function defaultRole(type) {
+    if (type === "stay") return "stay";
+    if (type === "food") return "food";
+    if (type === "free-time" || type === "buffer") return "buffer";
+    return "optional";
+  }
+
+  function str(v) { return typeof v === "string" ? v : ""; }
+
+  // 把任意来源（默认数据 / 导入文件 / 表单）的卡片补全字段并校验；坏卡返回 null。
+  function normalizeCard(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    var title = str(raw.title).trim();
+    if (!title) return null;
+    var type = CARD_TYPES.indexOf(raw.type) !== -1 ? raw.type : "place";
+    var theme = str(raw.theme) || "night"; // 未知主题保留，renderPool 有「其他」兜底组
+    var loc = str(raw.locationCode) || "TBD";
+    var dur = (typeof raw.durationMin === "number" && raw.durationMin >= 0)
+      ? Math.round(raw.durationMin) : (type === "stay" ? 0 : 60);
+    var best = Array.isArray(raw.bestTime)
+      ? raw.bestTime.filter(function (t) { return BEST_TIMES.indexOf(t) !== -1; }) : [];
+    if (!best.length) best = ["afternoon"];
+    var card = {
+      id: str(raw.id).trim() || genCardId(),
+      title: title,
+      type: type,
+      theme: theme,
+      locationCode: loc,
+      cardRole: str(raw.cardRole) || defaultRole(type),
+      durationMin: dur,
+      bestTime: best,
+      tags: Array.isArray(raw.tags) ? raw.tags.filter(function (t) { return typeof t === "string"; }) : [],
+      reservationNeeded: !!raw.reservationNeeded,
+      heatRisk: HEAT_LEVELS.indexOf(raw.heatRisk) !== -1 ? raw.heatRisk : "none",
+      experienceValue: typeof raw.experienceValue === "number" ? raw.experienceValue : 3,
+      visualValue: typeof raw.visualValue === "number" ? raw.visualValue : 3,
+      budgetLevel: str(raw.budgetLevel) || "$",
+      groupFit: str(raw.groupFit) || "all-four",
+      summary: str(raw.summary),
+      cautions: Array.isArray(raw.cautions) ? raw.cautions.filter(function (c) { return typeof c === "string"; }) : [],
+      sourceLinks: Array.isArray(raw.sourceLinks) ? raw.sourceLinks : []
+    };
+    if (raw.pending) card.pending = true;
+    if (raw.mapNode === null) card.mapNode = null;
+    else if (raw.mapNode && typeof raw.mapNode === "object") card.mapNode = raw.mapNode;
+    else card.mapNode = (loc === "CURRENT" || type === "free-time" || type === "buffer")
+      ? null : { shortLabel: title.slice(0, 4), cluster: theme, importance: 2 };
+    if (type === "stay") {
+      card.roomPlan = str(raw.roomPlan) || "2 rooms / 4 people";
+      card.priceLevel = str(raw.priceLevel) || "$";
+      card.vibe = str(raw.vibe);
+    }
+    return card;
+  }
+
+  function normalizePool(arr) {
+    if (!Array.isArray(arr)) return [];
+    var seen = {}, out = [];
+    arr.forEach(function (raw) {
+      var c = normalizeCard(raw);
+      if (c && !seen[c.id]) { seen[c.id] = true; out.push(c); }
+    });
+    return out;
+  }
+
+  function persistPool() {
+    try {
+      localStorage.setItem(POOL_KEY, JSON.stringify({ v: 1, site: "yixing", kind: "pool", places: PLACES }));
+    } catch (err) { /* 隐私模式等场景静默失败 */ }
+  }
+
+  function loadPool() {
+    var raw = null;
+    try { raw = localStorage.getItem(POOL_KEY); } catch (err) { /* ignore */ }
+    var arr = null;
+    if (raw) {
+      try {
+        var d = JSON.parse(raw);
+        arr = Array.isArray(d) ? d : (d && Array.isArray(d.places) ? d.places : null);
+      } catch (err) { /* 坏数据 → 落到默认 */ }
+    }
+    var pool = arr ? normalizePool(arr) : [];
+    if (!pool.length) pool = normalizePool(DEFAULT_PLACES); // 首访 / 空 / 坏文件 → 仓库默认
+    PLACES = pool;
+    rebuildIndex();
+  }
+
+  // 卡池增删后：把行程里已不存在的卡一并清掉，避免留下渲染时被跳过的孤儿 id
+  function purgeMissingFromDraft() {
+    var changed = false;
+    DAYS.forEach(function (d) {
+      var before = state.days[d.id].length;
+      state.days[d.id] = state.days[d.id].filter(function (id) { return cardById[id]; });
+      if (state.days[d.id].length !== before) changed = true;
+    });
+    ["d1", "d2"].forEach(function (d) {
+      if (state.stays[d] && !cardById[state.stays[d]]) { state.stays[d] = null; changed = true; }
+    });
+    if (changed) save();
+  }
+
   function currentGraph() {
     return buildRouteGraph(selectedItems(), EDGES, BLOCKED, REGION_TIMES, SAME_REGION);
   }
@@ -487,8 +604,14 @@
 
     var top = el("div", "card-top");
     top.appendChild(el("h3", "card-title", card.title));
+    var right = el("div", "card-top-right");
     var dur = durationText(card);
-    if (dur) top.appendChild(el("span", "card-duration", dur));
+    if (dur) right.appendChild(el("span", "card-duration", dur));
+    var editBtn = el("button", "card-edit-btn", "编辑");
+    editBtn.type = "button";
+    editBtn.setAttribute("data-edit-card", card.id);
+    right.appendChild(editBtn);
+    top.appendChild(right);
     node.appendChild(top);
 
     if (card.summary) node.appendChild(el("p", "card-summary", card.summary));
@@ -521,6 +644,18 @@
       wrap.appendChild(list);
       poolEl.appendChild(wrap);
     });
+    // 兜底：主题不在四感官里的卡（导入或改过的）也要看得到、能编辑
+    if (state.filter === "all") {
+      var others = PLACES.filter(function (p) { return THEMES.indexOf(p.theme) === -1; });
+      if (others.length) {
+        var w = el("section", "pool-group");
+        w.appendChild(el("h3", "pool-group-title", "其他"));
+        var l = el("div", "pool-cards");
+        others.forEach(function (card) { l.appendChild(buildCardEl(card)); });
+        w.appendChild(l);
+        poolEl.appendChild(w);
+      }
+    }
   }
 
   // 事件块上的即时提醒（按自动排出的实际时段判断）
@@ -1288,6 +1423,187 @@
     toast("已清空");
   }
 
+  /* ---------- 菜单（卡池）的编辑 / 导入 / 导出 / 恢复默认 ---------- */
+
+  var cardOverlayEl = document.getElementById("card-overlay");
+  var menuImportOverlayEl = document.getElementById("menu-import-overlay");
+  var menuImportFileEl = document.getElementById("menu-import-file");
+  var editingCardId = null;
+  var pendingImportPool = null;
+
+  function fillSelect(sel, entries) {
+    if (!sel) return;
+    sel.innerHTML = "";
+    entries.forEach(function (e) {
+      var o = document.createElement("option");
+      o.value = e[0];
+      o.textContent = e[1];
+      sel.appendChild(o);
+    });
+  }
+
+  function initCardForm() {
+    fillSelect(document.getElementById("cf-type"), CARD_TYPES.map(function (t) { return [t, TYPE_LABELS[t] || t]; }));
+    fillSelect(document.getElementById("cf-theme"), THEME_GROUPS.map(function (g) { return [g.theme, g.label]; }));
+    fillSelect(document.getElementById("cf-loc"), Object.keys(LOC_LABELS).map(function (k) { return [k, LOC_LABELS[k]]; }));
+    fillSelect(document.getElementById("cf-heat"), [["none", "无"], ["low", "低"], ["medium", "偏晒"], ["high", "暴晒"]]);
+  }
+
+  function openCardEditor(cardId) {
+    var c = cardId ? cardById[cardId] : null;
+    editingCardId = c ? cardId : null;
+    document.getElementById("card-overlay-title").textContent = c ? "编辑卡片" : "新增卡片";
+    document.getElementById("cf-title").value = c ? c.title : "";
+    document.getElementById("cf-type").value = c ? c.type : "place";
+    document.getElementById("cf-theme").value = c && THEMES.indexOf(c.theme) !== -1 ? c.theme : "dingshu";
+    document.getElementById("cf-loc").value = c && LOC_LABELS[c.locationCode] ? c.locationCode : "DS";
+    document.getElementById("cf-duration").value = c ? (c.durationMin || 0) : 60;
+    document.getElementById("cf-heat").value = c ? c.heatRisk : "none";
+    document.getElementById("cf-tags").value = c ? (c.tags || []).join("、") : "";
+    document.getElementById("cf-summary").value = c ? (c.summary || "") : "";
+    document.getElementById("cf-reservation").checked = c ? !!c.reservationNeeded : false;
+    document.getElementById("cf-pending").checked = c ? !!c.pending : false;
+    var times = c ? (c.bestTime || []) : ["afternoon"];
+    var boxes = document.querySelectorAll(".cf-time");
+    for (var i = 0; i < boxes.length; i += 1) boxes[i].checked = times.indexOf(boxes[i].value) !== -1;
+    document.getElementById("cf-delete").style.display = c ? "" : "none";
+    cardOverlayEl.hidden = false;
+    document.getElementById("cf-title").focus();
+  }
+
+  function closeCardEditor() {
+    cardOverlayEl.hidden = true;
+    editingCardId = null;
+  }
+
+  function collectCardFromForm() {
+    var title = document.getElementById("cf-title").value.trim();
+    if (!title) { toast("先给卡片起个名字", "warn"); return null; }
+    var times = [];
+    var boxes = document.querySelectorAll(".cf-time");
+    for (var i = 0; i < boxes.length; i += 1) if (boxes[i].checked) times.push(boxes[i].value);
+    var tags = document.getElementById("cf-tags").value
+      .split(/[、,，\s]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var base = (editingCardId && cardById[editingCardId]) ? cardById[editingCardId] : {};
+    var merged = {};
+    for (var k in base) if (base.hasOwnProperty(k)) merged[k] = base[k]; // 保留进阶字段（价位/评分/mapNode 等）
+    merged.id = editingCardId || genCardId();
+    merged.title = title;
+    merged.type = document.getElementById("cf-type").value;
+    merged.theme = document.getElementById("cf-theme").value;
+    merged.locationCode = document.getElementById("cf-loc").value;
+    merged.durationMin = parseInt(document.getElementById("cf-duration").value, 10) || 0;
+    merged.heatRisk = document.getElementById("cf-heat").value;
+    merged.bestTime = times.length ? times : ["afternoon"];
+    merged.tags = tags;
+    merged.summary = document.getElementById("cf-summary").value.trim();
+    merged.reservationNeeded = document.getElementById("cf-reservation").checked;
+    if (document.getElementById("cf-pending").checked) merged.pending = true;
+    else delete merged.pending;
+    if (base.mapNode && typeof base.mapNode === "object") delete merged.mapNode; // 让 normalizeCard 按新主题/位置重算
+    return normalizeCard(merged);
+  }
+
+  function saveCardFromForm() {
+    var c = collectCardFromForm();
+    if (!c) return;
+    var idx = -1;
+    for (var i = 0; i < PLACES.length; i += 1) if (PLACES[i].id === c.id) idx = i;
+    if (idx !== -1) PLACES[idx] = c; else PLACES.push(c);
+    persistPool();
+    rebuildIndex();
+    closeCardEditor();
+    renderAll();
+    toast(idx !== -1 ? "已更新「" + c.title + "」" : "已新增「" + c.title + "」");
+  }
+
+  function deleteCurrentCard() {
+    if (!editingCardId) { closeCardEditor(); return; }
+    var c = cardById[editingCardId];
+    if (!c) { closeCardEditor(); return; }
+    if (!window.confirm("删除卡片「" + c.title + "」？行程里若已放入也会一并移出。")) return;
+    var delId = editingCardId;
+    PLACES = PLACES.filter(function (p) { return p.id !== delId; });
+    removeCardEverywhere(delId);
+    persistPool();
+    rebuildIndex();
+    save();
+    closeCardEditor();
+    renderAll();
+    toast("已删除「" + c.title + "」");
+  }
+
+  function exportPool() {
+    var payload = { v: 1, site: "yixing", kind: "pool", places: PLACES };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "yixing-menu.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast("已导出菜单文件");
+  }
+
+  function applyImportPool(mode) {
+    if (!pendingImportPool) return;
+    if (mode === "replace") {
+      PLACES = pendingImportPool;
+    } else {
+      var idxById = {};
+      PLACES.forEach(function (p, i) { idxById[p.id] = i; });
+      pendingImportPool.forEach(function (c) {
+        if (idxById[c.id] !== undefined) PLACES[idxById[c.id]] = c;
+        else PLACES.push(c);
+      });
+    }
+    pendingImportPool = null;
+    menuImportOverlayEl.hidden = true;
+    persistPool();
+    rebuildIndex();
+    purgeMissingFromDraft();
+    renderAll();
+    toast(mode === "replace" ? "菜单已整体替换" : "菜单已合并追加");
+  }
+
+  menuImportFileEl.addEventListener("change", function () {
+    var file = menuImportFileEl.files && menuImportFileEl.files[0];
+    menuImportFileEl.value = ""; // 允许连续导入同一个文件
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data = null;
+      try { data = JSON.parse(String(reader.result)); } catch (err) { /* 落到下面报错 */ }
+      var arr = Array.isArray(data) ? data : (data && Array.isArray(data.places) ? data.places : null);
+      var pool = normalizePool(arr);
+      if (!pool.length) { toast("读不懂这个文件：需要本站导出的菜单 JSON", "warn"); return; }
+      pendingImportPool = pool;
+      document.getElementById("menu-import-msg").textContent =
+        "文件里有 " + pool.length + " 张卡片。整体替换会覆盖当前菜单；合并追加按 id 覆盖同名、追加新卡。";
+      menuImportOverlayEl.hidden = false;
+    };
+    reader.readAsText(file);
+  });
+
+  function resetPool() {
+    if (!window.confirm("用仓库默认菜单覆盖当前菜单？你对卡片的增删改会丢失（被删掉的卡也会从行程移出）。")) return;
+    PLACES = normalizePool(DEFAULT_PLACES);
+    persistPool();
+    rebuildIndex();
+    purgeMissingFromDraft();
+    renderAll();
+    toast("已恢复默认菜单");
+  }
+
+  cardOverlayEl.addEventListener("click", function (e) {
+    if (e.target === cardOverlayEl) closeCardEditor(); // 点背景关闭
+  });
+  menuImportOverlayEl.addEventListener("click", function (e) {
+    if (e.target === menuImportOverlayEl) { pendingImportPool = null; menuImportOverlayEl.hidden = true; }
+  });
+
   /* ---------- 点击（含拖拽后的 click 抑制） ---------- */
 
   var suppressClick = false;
@@ -1364,6 +1680,20 @@
     if (e.target.closest("#reset-btn")) { resetDraft(); return; }
     if (e.target.closest("#export-btn")) { exportDraft(); return; }
     if (e.target.closest("#import-btn")) { importFileEl.click(); return; }
+
+    // 菜单（卡池）：编辑 / 新增 / 导入 / 导出 / 恢复默认
+    var editCardBtn = e.target.closest("[data-edit-card]");
+    if (editCardBtn) { openCardEditor(editCardBtn.getAttribute("data-edit-card")); return; }
+    if (e.target.closest("#menu-add-btn")) { openCardEditor(null); return; }
+    if (e.target.closest("#menu-export-btn")) { exportPool(); return; }
+    if (e.target.closest("#menu-import-btn")) { menuImportFileEl.click(); return; }
+    if (e.target.closest("#menu-reset-btn")) { resetPool(); return; }
+    if (e.target.closest("#cf-save")) { saveCardFromForm(); return; }
+    if (e.target.closest("#cf-delete")) { deleteCurrentCard(); return; }
+    if (e.target.closest("#cf-cancel")) { closeCardEditor(); return; }
+    if (e.target.closest("#menu-import-replace")) { applyImportPool("replace"); return; }
+    if (e.target.closest("#menu-import-merge")) { applyImportPool("merge"); return; }
+    if (e.target.closest("#menu-import-cancel")) { pendingImportPool = null; menuImportOverlayEl.hidden = true; return; }
 
     if (e.target.closest("[data-cancel-selection]")) {
       clearSelection();
@@ -1506,6 +1836,7 @@
     if (!e.isPrimary) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (e.target.closest("[data-remove-card]")) return;
+    if (e.target.closest("[data-edit-card]")) return; // 卡上的「编辑」不启动拖拽
     var cardEl = e.target.closest("[data-drag-card]");
     if (!cardEl) return;
 
@@ -1593,6 +1924,8 @@
 
   /* ================= 初始化 ================= */
 
+  loadPool();       // 先建卡池 + cardById，load() 里的草稿清洗依赖它
+  initCardForm();   // 填充编辑表单里的下拉项
   load();
   document.body.setAttribute("data-view", state.view);
   applyPoolTheme();

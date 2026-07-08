@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>宜兴之旅</title>
 <meta name="description" content="宜兴四人行的行程拼配工具：自己选卡、自己拼、看看动线顺不顺。">
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body data-view="intro">
 
@@ -43,10 +43,18 @@
   <section id="view-pool" class="view pool-section" aria-label="菜单">
     <div class="section-head">
       <h2>菜单</h2>
+      <div class="plan-actions">
+        <button type="button" id="menu-add-btn" class="ghost-btn action-btn">新增卡片</button>
+        <button type="button" id="menu-import-btn" class="ghost-btn action-btn">导入</button>
+        <button type="button" id="menu-export-btn" class="ghost-btn action-btn">导出</button>
+        <button type="button" id="menu-reset-btn" class="ghost-btn action-btn">恢复默认</button>
+        <input type="file" id="menu-import-file" accept="application/json,.json" hidden>
+      </div>
     </div>
     <p class="section-note">
       点一张卡选中，再到「行程」点日历放入；或按住卡片直接拖过去。
       感官菜单同时切换氛围并筛选；已放进行程的卡不受影响。
+      点卡片上的「编辑」可改内容，「新增卡片」自己加；菜单存在本地，可导入 / 导出，随时「恢复默认」回到仓库版本。
       带「待确认」的地点还没最终讨论定。
     </p>
     <nav class="theme-menu" id="theme-menu" aria-label="感官菜单">
@@ -63,24 +71,26 @@
     <div class="section-head">
       <h2>行程</h2>
       <div class="plan-actions">
-        <button type="button" id="import-btn" class="ghost-btn">导入</button>
-        <button type="button" id="export-btn" class="ghost-btn">导出</button>
-        <button type="button" id="reset-btn" class="ghost-btn">清空</button>
+        <button type="button" id="import-btn" class="ghost-btn action-btn">导入</button>
+        <button type="button" id="export-btn" class="ghost-btn action-btn">导出</button>
+        <button type="button" id="reset-btn" class="ghost-btn action-btn">清空</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
       </div>
     </div>
     <div class="template-row">
       <span class="template-label">格式</span>
-      <span id="format-buttons">
+      <span class="template-items" id="format-buttons">
         <button type="button" data-format="fri">含周五晚</button>
         <button type="button" data-format="sat">周六早到</button>
       </span>
     </div>
     <div class="template-row">
       <span class="template-label">方案</span>
-      <span id="preset-buttons"></span>
-      <button type="button" id="save-plan-btn" class="ghost-btn">保存当前</button>
-      <span class="template-note">格式只定有没有周五晚；方案是整份行程，载入前会先确认。</span>
+      <div class="template-items">
+        <span id="preset-buttons"></span>
+        <button type="button" id="save-plan-btn" class="ghost-btn action-btn">保存当前</button>
+        <span class="template-note">格式只定有没有周五晚；方案是整份行程，载入前会先确认。</span>
+      </div>
     </div>
     <p class="section-note">
       拖一张卡进来会按预估时长自动向后叠放，地点变化时自动加上交通时间；
@@ -149,12 +159,55 @@
   </div>
 </div>
 
+<div id="card-overlay" class="overlay" hidden>
+  <div class="overlay-panel overlay-panel--form">
+    <h3 id="card-overlay-title">编辑卡片</h3>
+    <div class="form-grid">
+      <label class="field field--full"><span>标题</span><input type="text" id="cf-title" maxlength="30"></label>
+      <label class="field"><span>类型</span><select id="cf-type"></select></label>
+      <label class="field"><span>主题（分组）</span><select id="cf-theme"></select></label>
+      <label class="field"><span>位置</span><select id="cf-loc"></select></label>
+      <label class="field"><span>时长（分钟）</span><input type="number" id="cf-duration" min="0" max="600" step="15"></label>
+      <label class="field"><span>暑热风险</span><select id="cf-heat"></select></label>
+      <label class="field field--check"><input type="checkbox" id="cf-reservation"> 需预约</label>
+      <fieldset class="field field--full cf-times">
+        <span>适合时段</span>
+        <label><input type="checkbox" value="morning" class="cf-time"> 上午</label>
+        <label><input type="checkbox" value="afternoon" class="cf-time"> 下午</label>
+        <label><input type="checkbox" value="evening" class="cf-time"> 傍晚</label>
+        <label><input type="checkbox" value="night" class="cf-time"> 夜晚</label>
+      </fieldset>
+      <label class="field field--full"><span>标签（顿号或逗号分隔）</span><input type="text" id="cf-tags" placeholder="例：紫砂、老街、散步"></label>
+      <label class="field field--full"><span>简介</span><textarea id="cf-summary" rows="2" maxlength="120"></textarea></label>
+      <label class="field field--check"><input type="checkbox" id="cf-pending"> 待确认（未讨论定）</label>
+    </div>
+    <div class="overlay-actions">
+      <button type="button" class="ghost-btn" id="cf-delete">删除</button>
+      <span class="overlay-actions-spacer"></span>
+      <button type="button" class="ghost-btn" id="cf-cancel">取消</button>
+      <button type="button" class="primary-btn" id="cf-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="menu-import-overlay" class="overlay" hidden>
+  <div class="overlay-panel">
+    <h3>导入菜单</h3>
+    <p id="menu-import-msg" class="section-note"></p>
+    <div class="overlay-actions">
+      <button type="button" class="ghost-btn" id="menu-import-cancel">取消</button>
+      <button type="button" class="ghost-btn" id="menu-import-merge">合并追加</button>
+      <button type="button" class="primary-btn" id="menu-import-replace">整体替换</button>
+    </div>
+  </div>
+</div>
+
 <!-- 数据/逻辑文件带版本参数防缓存；改动这些文件时把 v 一起加一 -->
-<script src="data/places.js?v=9"></script>
-<script src="data/transport-edges.js?v=9"></script>
-<script src="data/blocked-edges.js?v=9"></script>
-<script src="data/presets.js?v=9"></script>
-<script src="data/region-times.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="data/places.js?v=16"></script>
+<script src="data/transport-edges.js?v=16"></script>
+<script src="data/blocked-edges.js?v=16"></script>
+<script src="data/presets.js?v=16"></script>
+<script src="data/region-times.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>
