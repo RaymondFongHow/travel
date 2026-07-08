@@ -584,6 +584,47 @@ button {
 
 .region-map-node.on text { font-weight: 600; }
 
+/* 动线：按天着色的方向路线（arrival 暖灰，Day 1/2/3 用卡片主题色） */
+.region-route {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.region-route--arrival { stroke: #a89c8e; }
+.region-route--d1 { stroke: var(--c-dingshu); }
+.region-route--d2 { stroke: var(--c-bamboo); }
+.region-route--d3 { stroke: var(--c-night); }
+
+.region-arrow { opacity: 0.9; }
+.region-arrow--arrival { fill: #a89c8e; }
+.region-arrow--d1 { fill: var(--c-dingshu); }
+.region-arrow--d2 { fill: var(--c-bamboo); }
+.region-arrow--d3 { fill: var(--c-night); }
+
+.region-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.region-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+
+.region-legend-item::before {
+  content: "";
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.region-legend--arrival::before { background: #a89c8e; }
+.region-legend--d1::before { background: var(--c-dingshu); }
+.region-legend--d2::before { background: var(--c-bamboo); }
+.region-legend--d3::before { background: var(--c-night); }
+
 /* ---------- 路线图（普通 HTML，flex column） ---------- */
 
 #route-graph { padding: 4px 0 0 4px; }

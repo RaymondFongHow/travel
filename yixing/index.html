@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>宜兴之旅</title>
 <meta name="description" content="宜兴四人行的行程拼配工具：自己选卡、自己拼、看看动线顺不顺。">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body data-view="intro">
 
@@ -99,8 +99,9 @@
       <h2>路线图</h2>
     </div>
     <div class="region-overview">
-      <p class="section-note">各区域实际相对方位；线上数字为打车分钟（粗估）。</p>
+      <p class="section-note">各区域实际相对方位；灰线为参考时距（分钟粗估），彩色箭头线是当前动线（按天着色，经住宿跨天衔接）。</p>
       <div id="region-map"></div>
+      <div id="region-legend" class="region-legend"></div>
     </div>
     <p class="section-note">下面按拼配顺序生成，线长与耗时成正比；虚线为区域粗估或待确认。</p>
     <div id="route-graph"></div>
@@ -149,11 +150,11 @@
 </div>
 
 <!-- 数据/逻辑文件带版本参数防缓存；改动这些文件时把 v 一起加一 -->
-<script src="data/places.js?v=6"></script>
-<script src="data/transport-edges.js?v=6"></script>
-<script src="data/blocked-edges.js?v=6"></script>
-<script src="data/presets.js?v=6"></script>
-<script src="data/region-times.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="data/places.js?v=9"></script>
+<script src="data/transport-edges.js?v=9"></script>
+<script src="data/blocked-edges.js?v=9"></script>
+<script src="data/presets.js?v=9"></script>
+<script src="data/region-times.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

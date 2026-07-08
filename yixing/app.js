@@ -750,6 +750,11 @@
       svg.appendChild(label);
     });
 
+    // 动线层：在参考线之上、节点之下（updateRegionRoutes 动态填充）
+    var routesG = document.createElementNS(svgNS, "g");
+    routesG.setAttribute("id", "region-routes");
+    svg.appendChild(routesG);
+
     codes.forEach(function (code) {
       var c = REGION_COORDS[code];
       var g = document.createElementNS(svgNS, "g");
@@ -786,6 +791,94 @@
     var nodes = regionMapEl.querySelectorAll(".region-map-node");
     for (var i = 0; i < nodes.length; i += 1) {
       nodes[i].classList.toggle("on", !!active[nodes[i].getAttribute("data-region")]);
+    }
+    updateRegionRoutes();
+  }
+
+  /* ---------- 概览图动线：按天着色的方向路线 ---------- */
+
+  // 每天的区域路径：本天事件按顺序取区域并去连续重复；
+  // 住宿收尾，且作为第二天的起点（跨天动线经由住宿衔接）
+  function dayRegionPaths() {
+    var paths = [];
+    var prevStayRegion = null;
+    activeDays().forEach(function (d) {
+      var regions = [];
+      if (prevStayRegion) regions.push(prevStayRegion);
+      state.days[d.id].forEach(function (id) {
+        var c = cardById[id];
+        if (!c || !isRouteNode(c)) return;
+        var code = c.locationCode;
+        if (!REGION_COORDS[code]) return; // TBD 等没有坐标的不画
+        if (regions[regions.length - 1] !== code) regions.push(code);
+      });
+      if (d.hasStay) {
+        var stayCard = state.stays[d.id] ? cardById[state.stays[d.id]] : null;
+        if (stayCard && REGION_COORDS[stayCard.locationCode]) {
+          if (regions[regions.length - 1] !== stayCard.locationCode) regions.push(stayCard.locationCode);
+          prevStayRegion = stayCard.locationCode;
+        } else {
+          prevStayRegion = null;
+        }
+      }
+      if (regions.length >= 2) paths.push({ day: d, regions: regions });
+    });
+    return paths;
+  }
+
+  function updateRegionRoutes() {
+    var g = document.getElementById("region-routes");
+    var legend = document.getElementById("region-legend");
+    if (!g) return;
+    var svgNS = "http://www.w3.org/2000/svg";
+    g.innerHTML = "";
+    if (legend) legend.innerHTML = "";
+
+    var paths = dayRegionPaths();
+    paths.forEach(function (p) {
+      var idx = DAYS.indexOf(p.day);
+      var off = (idx - 1.5) * 2.4; // 每天一条平行偏移，重叠路段不会互相盖死
+      var cls = p.day.id;
+      for (var i = 0; i < p.regions.length - 1; i += 1) {
+        var a = REGION_COORDS[p.regions[i]];
+        var b = REGION_COORDS[p.regions[i + 1]];
+        var dx = b.x - a.x;
+        var dy = b.y - a.y;
+        var len = Math.hypot(dx, dy) || 1;
+        var ux = dx / len;
+        var uy = dy / len;
+        var px = -uy;
+        var py = ux;
+        var trim = len > 26 ? 9 : 4; // 两端缩进，别压住节点圆点
+        var x1 = a.x + ux * trim + px * off;
+        var y1 = a.y + uy * trim + py * off;
+        var x2 = b.x - ux * trim + px * off;
+        var y2 = b.y - uy * trim + py * off;
+
+        var line = document.createElementNS(svgNS, "line");
+        line.setAttribute("x1", x1);
+        line.setAttribute("y1", y1);
+        line.setAttribute("x2", x2);
+        line.setAttribute("y2", y2);
+        line.setAttribute("class", "region-route region-route--" + cls);
+        g.appendChild(line);
+
+        // 段中点的方向箭头
+        var mx = (x1 + x2) / 2;
+        var my = (y1 + y2) / 2;
+        var tri = document.createElementNS(svgNS, "path");
+        tri.setAttribute("d",
+          "M" + (mx + ux * 4.5) + " " + (my + uy * 4.5) +
+          "L" + (mx - ux * 2.5 + px * 3) + " " + (my - uy * 2.5 + py * 3) +
+          "L" + (mx - ux * 2.5 - px * 3) + " " + (my - uy * 2.5 - py * 3) + "Z");
+        tri.setAttribute("class", "region-arrow region-arrow--" + cls);
+        g.appendChild(tri);
+      }
+      if (legend) legend.appendChild(el("span", "region-legend-item region-legend--" + cls, p.day.label));
+    });
+
+    if (legend && !paths.length) {
+      legend.appendChild(el("span", "region-legend-item", "放入两个不同区域的地点后，动线会按天画在图上"));
     }
   }
 
