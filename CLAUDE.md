@@ -1,0 +1,46 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A pure static travel site deployed to GitHub Pages at `travel.raymondfonghow.com` (repo `RaymondFongHow/travel`, branch `main`, served from the repo root — `CNAME` lives there). Each destination is a folder served as a subpath; `yixing/` is the only one so far: a trip-planning web app for a four-person trip to 宜兴 on July 24–27, 2026. All site content is Chinese.
+
+Hard constraints (from `yixing/docs/`, do not violate):
+
+- No build tool, no framework, no dependencies. Hand-written HTML/CSS/JS only.
+- Everything must work under the `/yixing/` subpath → all asset references are relative.
+- Touch-first: the audience opens this in WeChat's in-app browser. Drag uses pointer events with long-press lift (never HTML5 drag-and-drop); every drag flow has a tap-to-assign fallback; theme changes are tap-driven, hover is enhancement only.
+- Plain scripts on the `window.YX` namespace, not ES modules (WeChat webview safety). `data/*.js` files assign into `window.YX`; `app.js` is one IIFE.
+
+## Developing
+
+```bash
+# Serve the REPO ROOT (subpath must work), then open /yixing/
+python3 -m http.server 4173
+
+# Syntax check (there are no tests or linters)
+for f in yixing/app.js yixing/data/*.js; do node --check "$f"; done
+```
+
+A preview launch config `travel-static` (port 4611) exists in `.claude/launch.json`.
+
+**Cache busting:** whenever you change `yixing/app.js`, `yixing/styles.css`, or `yixing/data/*.js`, bump the shared `?v=N` query on ALL the `<script>`/`<link>` tags in `yixing/index.html`. Local python serving has no Cache-Control (browsers heuristically cache stale files) and GitHub Pages caches 10 minutes.
+
+Note: `requestAnimationFrame` does not fire in some verification environments — trigger CSS transitions with a forced reflow (`void el.offsetHeight`) instead of double-rAF.
+
+## Architecture
+
+`yixing/docs/` is the product spec (in Chinese) and `yixing/docs/handover-notes.md` is the living state-of-the-project document — read it first and keep it updated when behavior changes. All place/travel-time data is placeholder (`pending: true`, times marked 估) until the group confirms the real place pool.
+
+`yixing/app.js` is organized in sections with pure logic deliberately separated from DOM rendering:
+
+- **State** (`state`, persisted to localStorage key `yixing-draft-v1`, payload v2): `days` (ordered card-id queues for `arrival`/`d1`/`d2`/`d3`), `stays` (d1/d2 stay slots), `tripFormat` (`fri` includes the Friday arrival page, `sat` hides it), `filter` (sensory-theme pool filter or `"all"`), `view`, `activeDay`. Old v1 slot-based drafts/exports auto-convert via `convertV1Slots`; all imports go through `normalizedDraft` (validate before overwrite). User-saved plans live under `yixing-saved-plans-v1`.
+- **Auto-calendar** (`buildDaySchedule`): each day auto-stacks events by `durationMin` from the day's `startMin`; travel segments between consecutive *real* locations push the clock. Cards with `locationCode: "CURRENT"` (free time/buffer) add no travel but don't swallow the leg — travel is computed from the last real location. Stay cards auto-route to the day's stay area.
+- **Travel-time tiers** (`travelSegment` / `buildRouteGraph`): confirmed direct edge (`data/transport-edges.js`, keyed by place ids) > blocked pair (`data/blocked-edges.js`, renders a break with suggested via, never falls back) > exhaustive region-pair estimate (`data/region-times.js`, keyed by `locationCode`) > fixed fallback. `locationCode` values are internal keys only; the UI always shows Chinese names via `LOC_LABELS`.
+- **Views**: four subpages (`intro`/`pool`/`plan`/`graph`) via `body[data-view]`; mobile (<1024px) shows one at a time with a fixed bottom tab bar, desktop shows pool|plan|graph as three columns. The view-system media queries must stay at the END of `styles.css` — they override component rules by source order.
+- **Theming**: sensory themes apply ONLY to the pool section (`[data-theme]` on `#view-pool`, driven by the filter); the rest of the page stays neutral near-white. Card accent colors (`--c-*`) are fixed and theme-independent.
+- **Drag**: on lift, pointer capture transfers to `body` (the pool view gets hidden mid-drag on mobile), the ghost stretches to the card's duration height, edge-of-viewport auto-scroll runs on an interval. Drop targets: an event (insert before) > stay area > anywhere in the plan view (append).
+- **Overview map** (`renderRegionMap`/`updateRegionRoutes`): SVG with region nodes placed by approximate real lat/lng (coords + label sides hand-set in `data/region-times.js`); per-day colored, arrowed route lines with parallel offsets, chained across days through the stay region.
+
+Destructive actions (loading a plan over a non-empty draft, format switch that drops arrival cards, reset) must confirm first; mutations that support undo snapshot the whole draft (`draftSnapshot`).
