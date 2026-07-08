@@ -36,11 +36,12 @@
 
   // 行程是一个“自动日历”：每天一个有序队列，事件按预估时长自动向后叠放，
   // 相邻地点之间自动插入交通段并推后时钟；← → 在天与天之间切换。
+  // 行程日期：7 月 25 日（周六）为主日，周五晚可提前到，周一午后返程
   var DAYS = [
-    { id: "arrival", label: "到达", startMin: 19 * 60, hasStay: false, hint: "到达当晚的缓冲段" },
-    { id: "d1", label: "Day 1", startMin: 9 * 60, hasStay: true },
-    { id: "d2", label: "Day 2", startMin: 9 * 60, hasStay: true },
-    { id: "d3", label: "Day 3", startMin: 9 * 60, hasStay: false, hint: "午餐后返程" }
+    { id: "arrival", label: "July 24 Fri", startMin: 19 * 60, hasStay: false, hint: "到达当晚的缓冲段（周六早到则留白）" },
+    { id: "d1", label: "July 25 Sat", startMin: 9 * 60, hasStay: true },
+    { id: "d2", label: "July 26 Sun", startMin: 9 * 60, hasStay: true },
+    { id: "d3", label: "July 27 Mon", startMin: 9 * 60, hasStay: false, hint: "午餐后返程" }
   ];
   var dayById = {};
   DAYS.forEach(function (d) { dayById[d.id] = d; });
