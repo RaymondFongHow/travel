@@ -355,8 +355,8 @@ button {
   touch-action: pan-y;
 }
 
-/* 块按时长拉高后：属性标签沉到底部，移出按钮钉在右上角（与上/右边框等距） */
-.cal-event .card-meta { margin-top: auto; padding-top: 6px; }
+/* 块按时长拉高后：属性标签沉向底部，但与下边框保持和左侧一致的间距（8+4=12px） */
+.cal-event .card-meta { margin-top: auto; padding-top: 6px; margin-bottom: 4px; }
 
 .cal-event .slot-remove {
   position: absolute;
