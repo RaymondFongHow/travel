@@ -14,7 +14,8 @@ window.YX = window.YX || {};
 window.YX.presets = [
   {
     id: "fri-night-arrival",
-    title: "周五晚到",
+    title: "示例 · 周五晚到",
+    format: "fri",
     note: "周五晚上高铁到，先简单吃一碗，第二天进丁蜀线。",
     days: {
       arrival: ["noodle-shop"],
@@ -26,11 +27,11 @@ window.YX.presets = [
   },
   {
     id: "sat-morning-arrival",
-    title: "周六早到",
+    title: "示例 · 周六早到",
+    format: "sat",
     note: "周六早上高铁到，放下行李直接进丁蜀。第二晚住宿留白待讨论。",
     days: {
-      arrival: ["transport-buffer"],
-      d1: ["shushan-old-street", "taoerchang", "yibang-dinner"],
+      d1: ["transport-buffer", "shushan-old-street", "taoerchang", "yibang-dinner"],
       d2: ["bamboo-sea", "shanjuan-cave", "free-time-saboteur"],
       d3: ["dongjiu-lake", "noodle-shop"]
     },

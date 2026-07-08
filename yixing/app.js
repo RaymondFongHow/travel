@@ -46,6 +46,13 @@
   var dayById = {};
   DAYS.forEach(function (d) { dayById[d.id] = d; });
 
+  // 行程格式（“模板”只管结构）：fri = 含周五晚到达页；sat = 周六早到，无到达页
+  function activeDays() {
+    return state.tripFormat === "sat"
+      ? DAYS.filter(function (d) { return d.id !== "arrival"; })
+      : DAYS;
+  }
+
   var DAY_END_WARN_MIN = 22 * 60; // 排到这个点之后提示“偏满”
   var CAL_PX_PER_MIN = 1.1;       // 日历块高度与分钟的比例
 
@@ -267,7 +274,7 @@
   // filter：感官菜单的双重角色之二 —— 筛选卡片池（"all" 或某个主题）。
   // days：每天的有序卡片队列；stays：Day 1/2 的住宿位；activeDay：日历当前页。
   var state = {
-    filter: "all", view: "intro", activeDay: "d1",
+    filter: "all", view: "intro", activeDay: "d1", tripFormat: "fri",
     days: { arrival: [], d1: [], d2: [], d3: [] },
     stays: { d1: null, d2: null }
   };
@@ -294,14 +301,21 @@
     if (state.stays.d2 === cardId) state.stays.d2 = null;
   }
 
-  // 全程顺序：到达 → Day1 → 住宿1 → Day2 → 住宿2 → Day3（路线图沿用）
+  // 全程顺序：到达（若含）→ Day1 → 住宿1 → Day2 → 住宿2 → Day3（路线图沿用）
   function selectedItems() {
     var ids = [];
-    DAYS.forEach(function (d) {
+    activeDays().forEach(function (d) {
       ids = ids.concat(state.days[d.id]);
       if (d.hasStay && state.stays[d.id]) ids.push(state.stays[d.id]);
     });
     return ids.map(function (id) { return cardById[id]; }).filter(Boolean);
+  }
+
+  function draftIsEmpty() {
+    var empty = true;
+    DAYS.forEach(function (d) { if (state.days[d.id].length) empty = false; });
+    if (state.stays.d1 || state.stays.d2) empty = false;
+    return empty;
   }
 
   // 清洗一份草稿（模板 / 导入 / 旧存档共用）：只保留认识的卡，去重
@@ -351,7 +365,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         v: 2, filter: state.filter, view: state.view, activeDay: state.activeDay,
-        days: state.days, stays: state.stays
+        tripFormat: state.tripFormat, days: state.days, stays: state.stays
       }));
     } catch (err) { /* 隐私模式等场景下静默失败 */ }
   }
@@ -366,7 +380,9 @@
 
     if (data.filter === "all" || THEMES.indexOf(data.filter) !== -1) state.filter = data.filter;
     if (VIEWS.indexOf(data.view) !== -1) state.view = data.view; // 回访者接着上次的视图
+    if (data.tripFormat === "fri" || data.tripFormat === "sat") state.tripFormat = data.tripFormat;
     if (dayById[data.activeDay]) state.activeDay = data.activeDay;
+    if (state.tripFormat === "sat" && state.activeDay === "arrival") state.activeDay = "d1";
 
     var raw = null;
     if (data.days && typeof data.days === "object") raw = { days: data.days, stays: data.stays || {} };
@@ -559,21 +575,25 @@
   }
 
   function stepDay(delta) {
-    var idx = DAYS.indexOf(dayById[state.activeDay]) + delta;
-    idx = Math.max(0, Math.min(DAYS.length - 1, idx));
-    state.activeDay = DAYS[idx].id;
+    var list = activeDays();
+    var idx = list.indexOf(dayById[state.activeDay]);
+    if (idx === -1) idx = 0;
+    idx = Math.max(0, Math.min(list.length - 1, idx + delta));
+    state.activeDay = list[idx].id;
     save();
     renderDay();
   }
 
   function renderDay() {
+    var list = activeDays();
+    if (list.indexOf(dayById[state.activeDay]) === -1) state.activeDay = "d1";
     var day = dayById[state.activeDay];
-    var idx = DAYS.indexOf(day);
+    var idx = list.indexOf(day);
     dayTitleEl.textContent = day.label + (day.hint ? " · " + day.hint : "");
     var prevBtn = document.querySelector('[data-day-nav="-1"]');
     var nextBtn = document.querySelector('[data-day-nav="1"]');
     if (prevBtn) prevBtn.disabled = idx === 0;
-    if (nextBtn) nextBtn.disabled = idx === DAYS.length - 1;
+    if (nextBtn) nextBtn.disabled = idx === list.length - 1;
 
     dayCanvasEl.innerHTML = "";
     var sched = buildDaySchedule(day.id);
@@ -781,13 +801,34 @@
     hintBarEl.hidden = false;
   }
 
+  function renderFormatButtons() {
+    var btns = document.querySelectorAll("[data-format]");
+    for (var i = 0; i < btns.length; i += 1) {
+      btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-format") === state.tripFormat ? "true" : "false");
+    }
+  }
+
+  // 方案行：内置示例 + 用户保存的（带删除 ×）
   function renderPresetButtons() {
     presetWrapEl.innerHTML = "";
     PRESETS.forEach(function (preset) {
       var btn = el("button", null, preset.title);
       btn.setAttribute("type", "button");
-      btn.setAttribute("data-preset", preset.id);
+      btn.setAttribute("data-plan", "preset:" + preset.id);
       presetWrapEl.appendChild(btn);
+    });
+    loadSavedPlans().forEach(function (plan) {
+      var wrap = el("span", "saved-plan");
+      var btn = el("button", null, plan.title);
+      btn.setAttribute("type", "button");
+      btn.setAttribute("data-plan", "saved:" + plan.id);
+      wrap.appendChild(btn);
+      var del = el("button", "saved-plan-del", "×");
+      del.setAttribute("type", "button");
+      del.setAttribute("data-del-plan", plan.id);
+      del.setAttribute("aria-label", "删除方案「" + plan.title + "」");
+      wrap.appendChild(del);
+      presetWrapEl.appendChild(wrap);
     });
   }
 
@@ -797,6 +838,7 @@
     renderRouteGraph();
     renderHintBar();
     renderThemeMenu();
+    renderFormatButtons();
   }
 
   var toastTimer = null;
@@ -831,12 +873,13 @@
   }
 
   function draftSnapshot() {
-    return JSON.parse(JSON.stringify({ days: state.days, stays: state.stays }));
+    return JSON.parse(JSON.stringify({ days: state.days, stays: state.stays, tripFormat: state.tripFormat }));
   }
 
   function undoAssign(u) {
     state.days = u.snap.days;
     state.stays = u.snap.stays;
+    if (u.snap.tripFormat) state.tripFormat = u.snap.tripFormat;
     clearSelection();
     hideSnackbar();
     save();
@@ -963,24 +1006,131 @@
     if (isMobile() && state.view !== "plan") setView("plan");
   }
 
-  function applyPreset(presetId) {
-    var preset = null;
-    for (var i = 0; i < PRESETS.length; i += 1) {
-      if (PRESETS[i].id === presetId) { preset = PRESETS[i]; break; }
-    }
-    if (!preset) return;
+  /* ---------- 格式与方案 ----------
+     “模板”只管格式（有没有周五晚）；“方案”是完整行程：
+     内置示例 + 用户保存在 localStorage 的方案，载入前防覆盖。 */
 
+  function setTripFormat(fmt) {
+    if (fmt !== "fri" && fmt !== "sat") return;
+    if (fmt === state.tripFormat) return;
+    if (fmt === "sat" && state.days.arrival.length) {
+      var ok = window.confirm("切换到周六早到会去掉周五到达页，其中 " + state.days.arrival.length + " 张卡将移回菜单。继续？");
+      if (!ok) { renderFormatButtons(); return; }
+      state.days.arrival = [];
+    }
+    state.tripFormat = fmt;
+    if (state.tripFormat === "sat" && state.activeDay === "arrival") state.activeDay = "d1";
     hideSnackbar();
-    var n = normalizedDraft(preset.days || {}, preset.stays || {});
+    save();
+    renderAll();
+  }
+
+  var PLANS_KEY = "yixing-saved-plans-v1";
+
+  function loadSavedPlans() {
+    try {
+      var raw = localStorage.getItem(PLANS_KEY);
+      var list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch (err) { return []; }
+  }
+
+  function persistSavedPlans(list) {
+    try { localStorage.setItem(PLANS_KEY, JSON.stringify(list)); } catch (err) { /* 存不进就算了 */ }
+  }
+
+  function saveCurrentPlan(title) {
+    var list = loadSavedPlans();
+    list.unshift({
+      id: "p" + Date.now(),
+      title: title,
+      format: state.tripFormat,
+      days: state.days,
+      stays: state.stays
+    });
+    if (list.length > 12) list.length = 12; // 别让缓存无限膨胀
+    persistSavedPlans(list);
+    renderPresetButtons();
+    toast("已保存「" + title + "」");
+  }
+
+  function deleteSavedPlan(planId) {
+    var list = loadSavedPlans();
+    var plan = null;
+    for (var i = 0; i < list.length; i += 1) if (list[i].id === planId) plan = list[i];
+    if (!plan) return;
+    if (!window.confirm("删除方案「" + plan.title + "」？")) return;
+    persistSavedPlans(list.filter(function (p) { return p.id !== planId; }));
+    renderPresetButtons();
+    toast("已删除「" + plan.title + "」");
+  }
+
+  function findPlan(ref) {
+    var i;
+    if (ref.indexOf("preset:") === 0) {
+      var pid = ref.slice(7);
+      for (i = 0; i < PRESETS.length; i += 1) if (PRESETS[i].id === pid) return PRESETS[i];
+    } else if (ref.indexOf("saved:") === 0) {
+      var sid = ref.slice(6);
+      var list = loadSavedPlans();
+      for (i = 0; i < list.length; i += 1) if (list[i].id === sid) return list[i];
+    }
+    return null;
+  }
+
+  function applyPlan(plan) {
+    if (!plan) return;
+    // 防冲洗：当前有内容时先确认（可先用「保存当前」存档）
+    if (!draftIsEmpty()) {
+      var ok = window.confirm("载入「" + plan.title + "」会替换当前行程；不想丢的话可以先点「保存当前」。继续？");
+      if (!ok) return;
+    }
+    hideSnackbar();
+    var snap = draftSnapshot();
+    var n = normalizedDraft(plan.days || {}, plan.stays || {});
     state.days = n.days;
     state.stays = n.stays;
+    if (plan.format === "fri" || plan.format === "sat") state.tripFormat = plan.format;
     state.activeDay = "d1";
-
     clearSelection();
     save();
     renderAll();
-    toast(preset.note || (preset.title + " 已载入"));
+    var msg = "已载入「" + plan.title + "」";
+    if (isMobile()) showSnackbar(msg, null, { snap: snap });
+    else toast(msg);
   }
+
+  /* 保存方案的取名弹窗 */
+
+  var saveOverlayEl = document.getElementById("save-overlay");
+  var planNameInputEl = document.getElementById("plan-name-input");
+
+  function openSaveOverlay() {
+    if (draftIsEmpty()) { toast("行程还是空的，先拼一点再保存"); return; }
+    planNameInputEl.value = "";
+    planNameInputEl.placeholder = "我的方案 " + (loadSavedPlans().length + 1);
+    saveOverlayEl.hidden = false;
+    planNameInputEl.focus();
+  }
+
+  function closeSaveOverlay() {
+    saveOverlayEl.hidden = true;
+  }
+
+  function confirmSaveOverlay() {
+    var title = planNameInputEl.value.trim() || planNameInputEl.placeholder;
+    closeSaveOverlay();
+    saveCurrentPlan(title);
+  }
+
+  planNameInputEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") confirmSaveOverlay();
+    if (e.key === "Escape") closeSaveOverlay();
+  });
+
+  saveOverlayEl.addEventListener("click", function (e) {
+    if (e.target === saveOverlayEl) closeSaveOverlay(); // 点背景关闭
+  });
 
   /* ---------- 行程的导出 / 导入（本地 JSON 文件，便于朋友间传） ---------- */
 
@@ -1105,8 +1255,18 @@
       return;
     }
 
-    var presetBtn = e.target.closest("[data-preset]");
-    if (presetBtn) { applyPreset(presetBtn.getAttribute("data-preset")); return; }
+    var fmtBtn = e.target.closest("[data-format]");
+    if (fmtBtn) { setTripFormat(fmtBtn.getAttribute("data-format")); return; }
+
+    var delPlanBtn = e.target.closest("[data-del-plan]");
+    if (delPlanBtn) { deleteSavedPlan(delPlanBtn.getAttribute("data-del-plan")); return; }
+
+    var planBtn = e.target.closest("[data-plan]");
+    if (planBtn) { applyPlan(findPlan(planBtn.getAttribute("data-plan"))); return; }
+
+    if (e.target.closest("#save-plan-btn")) { openSaveOverlay(); return; }
+    if (e.target.closest("#save-plan-cancel")) { closeSaveOverlay(); return; }
+    if (e.target.closest("#save-plan-confirm")) { confirmSaveOverlay(); return; }
 
     if (e.target.closest("#reset-btn")) { resetDraft(); return; }
     if (e.target.closest("#export-btn")) { exportDraft(); return; }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>宜兴之旅</title>
 <meta name="description" content="宜兴四人行的行程拼配工具：自己选卡、自己拼、看看动线顺不顺。">
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body data-view="intro">
 
@@ -70,9 +70,17 @@
       </div>
     </div>
     <div class="template-row">
-      <span class="template-label">模板</span>
+      <span class="template-label">格式</span>
+      <span id="format-buttons">
+        <button type="button" data-format="fri">含周五晚</button>
+        <button type="button" data-format="sat">周六早到</button>
+      </span>
+    </div>
+    <div class="template-row">
+      <span class="template-label">方案</span>
       <span id="preset-buttons"></span>
-      <span class="template-note">默认起点，可自由改动；空着的天就是留白。</span>
+      <button type="button" id="save-plan-btn" class="ghost-btn">保存当前</button>
+      <span class="template-note">格式只定有没有周五晚；方案是整份行程，载入前会先确认。</span>
     </div>
     <p class="section-note">
       拖一张卡进来会按预估时长自动向后叠放，地点变化时自动加上交通时间；
@@ -129,12 +137,23 @@
 
 <div id="toast" class="toast" hidden></div>
 
+<div id="save-overlay" class="overlay" hidden>
+  <div class="overlay-panel">
+    <h3>保存当前行程</h3>
+    <input id="plan-name-input" type="text" maxlength="20" placeholder="给这份行程取个名字">
+    <div class="overlay-actions">
+      <button type="button" class="ghost-btn" id="save-plan-cancel">取消</button>
+      <button type="button" class="primary-btn" id="save-plan-confirm">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 数据/逻辑文件带版本参数防缓存；改动这些文件时把 v 一起加一 -->
-<script src="data/places.js?v=5"></script>
-<script src="data/transport-edges.js?v=5"></script>
-<script src="data/blocked-edges.js?v=5"></script>
-<script src="data/presets.js?v=5"></script>
-<script src="data/region-times.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="data/places.js?v=6"></script>
+<script src="data/transport-edges.js?v=6"></script>
+<script src="data/blocked-edges.js?v=6"></script>
+<script src="data/presets.js?v=6"></script>
+<script src="data/region-times.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

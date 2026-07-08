@@ -490,19 +490,37 @@ button {
   color: var(--muted);
 }
 
-.template-row #preset-buttons { display: inline-flex; gap: 6px; }
+.template-row #preset-buttons,
+.template-row #format-buttons { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
-.template-row #preset-buttons button {
+.template-row #preset-buttons button,
+.template-row #format-buttons button {
   font-size: 12px;
   padding: 4px 11px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
 }
 
-.template-row #preset-buttons button:hover { border-color: var(--accent); color: var(--accent); }
+.template-row #preset-buttons button:hover,
+.template-row #format-buttons button:hover { border-color: var(--accent); color: var(--accent); }
+
+.template-row #format-buttons button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.saved-plan { display: inline-flex; align-items: center; }
+
+.saved-plan-del {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 5px;
+}
+.saved-plan-del:hover { color: var(--warn); }
 
 .template-note {
   flex-basis: 100%;
@@ -884,6 +902,55 @@ button {
   font-size: 11px;
   font-weight: 400;
   color: var(--muted);
+}
+
+/* ---------- 保存方案的取名弹窗 ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.overlay[hidden] { display: none; }
+
+.overlay-panel {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 18px 18px 16px;
+  width: 100%;
+  max-width: 340px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.overlay-panel h3 { font-size: 15px; }
+
+.overlay-panel input {
+  font: inherit;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: inherit;
+}
+
+.overlay-panel input:focus {
+  outline: 2px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.overlay-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* 选卡后飞向底部悬置区的影子 */
