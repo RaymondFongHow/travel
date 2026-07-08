@@ -339,6 +339,7 @@ button {
 }
 
 .cal-event {
+  position: relative; /* 移出按钮以块为参照定位 */
   background: var(--surface);
   border: 1px solid var(--line);
   border-left: 3px solid var(--card-accent, var(--line));
@@ -354,6 +355,15 @@ button {
   touch-action: pan-y;
 }
 
+/* 块按时长拉高后：属性标签沉到底部，移出按钮钉在右上角（与上/右边框等距） */
+.cal-event .card-meta { margin-top: auto; padding-top: 6px; }
+
+.cal-event .slot-remove {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+}
+
 /* 插入位置提示：上缘出现一条 accent 线 */
 .cal-event--before { box-shadow: 0 -3px 0 0 var(--accent), var(--shadow); }
 
@@ -364,6 +374,7 @@ button {
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
+  padding-right: 48px; /* 给右上角的移出按钮让位 */
 }
 
 .cal-time {
