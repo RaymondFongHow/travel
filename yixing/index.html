@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>宜兴之旅</title>
 <meta name="description" content="宜兴四人行的行程拼配工具：自己选卡、自己拼、看看动线顺不顺。">
-<link rel="stylesheet" href="styles.css?v=16">
+<link rel="stylesheet" href="styles.css?v=18">
 </head>
 <body data-view="intro">
 
 <header class="site-header">
   <div class="container">
-    <p class="kicker">travel / yixing</p>
+    <p class="kicker"><a href="../" class="kicker-link">← travel</a> / yixing</p>
     <h1>宜兴之旅</h1>
   </div>
 </header>
@@ -168,15 +168,17 @@
       <label class="field"><span>主题（分组）</span><select id="cf-theme"></select></label>
       <label class="field"><span>位置</span><select id="cf-loc"></select></label>
       <label class="field"><span>时长（分钟）</span><input type="number" id="cf-duration" min="0" max="600" step="15"></label>
+      <div class="field field--full cf-times" role="group" aria-label="适合时段">
+        <span>适合时段</span>
+        <div class="cf-times-opts">
+          <label><input type="checkbox" value="morning" class="cf-time"> 上午</label>
+          <label><input type="checkbox" value="afternoon" class="cf-time"> 下午</label>
+          <label><input type="checkbox" value="evening" class="cf-time"> 傍晚</label>
+          <label><input type="checkbox" value="night" class="cf-time"> 夜晚</label>
+        </div>
+      </div>
       <label class="field"><span>暑热风险</span><select id="cf-heat"></select></label>
       <label class="field field--check"><input type="checkbox" id="cf-reservation"> 需预约</label>
-      <fieldset class="field field--full cf-times">
-        <span>适合时段</span>
-        <label><input type="checkbox" value="morning" class="cf-time"> 上午</label>
-        <label><input type="checkbox" value="afternoon" class="cf-time"> 下午</label>
-        <label><input type="checkbox" value="evening" class="cf-time"> 傍晚</label>
-        <label><input type="checkbox" value="night" class="cf-time"> 夜晚</label>
-      </fieldset>
       <label class="field field--full"><span>标签（顿号或逗号分隔）</span><input type="text" id="cf-tags" placeholder="例：紫砂、老街、散步"></label>
       <label class="field field--full"><span>简介</span><textarea id="cf-summary" rows="2" maxlength="120"></textarea></label>
       <label class="field field--check"><input type="checkbox" id="cf-pending"> 待确认（未讨论定）</label>
@@ -203,11 +205,11 @@
 </div>
 
 <!-- 数据/逻辑文件带版本参数防缓存；改动这些文件时把 v 一起加一 -->
-<script src="data/places.js?v=16"></script>
-<script src="data/transport-edges.js?v=16"></script>
-<script src="data/blocked-edges.js?v=16"></script>
-<script src="data/presets.js?v=16"></script>
-<script src="data/region-times.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="data/places.js?v=18"></script>
+<script src="data/transport-edges.js?v=18"></script>
+<script src="data/blocked-edges.js?v=18"></script>
+<script src="data/presets.js?v=18"></script>
+<script src="data/region-times.js?v=18"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>
