@@ -644,6 +644,25 @@ button {
 .region-legend--d2::before { background: var(--c-bamboo); }
 .region-legend--d3::before { background: var(--c-night); }
 
+/* 悬浮某天图例：突出当天动线、淡化其余（桌面增强；触屏无 hover，不受影响） */
+.region-route, .region-arrow, .region-legend-item { transition: opacity 0.15s ease; }
+.region-legend-item[data-hi-day] { cursor: default; }
+.region-overview[data-hi] .region-route,
+.region-overview[data-hi] .region-arrow { opacity: 0.12; }
+.region-overview[data-hi] .region-legend-item { opacity: 0.4; }
+.region-overview[data-hi="arrival"] .region-route--arrival,
+.region-overview[data-hi="arrival"] .region-arrow--arrival,
+.region-overview[data-hi="arrival"] .region-legend--arrival,
+.region-overview[data-hi="d1"] .region-route--d1,
+.region-overview[data-hi="d1"] .region-arrow--d1,
+.region-overview[data-hi="d1"] .region-legend--d1,
+.region-overview[data-hi="d2"] .region-route--d2,
+.region-overview[data-hi="d2"] .region-arrow--d2,
+.region-overview[data-hi="d2"] .region-legend--d2,
+.region-overview[data-hi="d3"] .region-route--d3,
+.region-overview[data-hi="d3"] .region-arrow--d3,
+.region-overview[data-hi="d3"] .region-legend--d3 { opacity: 1; }
+
 /* ---------- 路线图（普通 HTML，flex column） ---------- */
 
 #route-graph { padding: 4px 0 0 4px; }

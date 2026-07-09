@@ -1009,12 +1009,31 @@
         tri.setAttribute("class", "region-arrow region-arrow--" + cls);
         g.appendChild(tri);
       }
-      if (legend) legend.appendChild(el("span", "region-legend-item region-legend--" + cls, p.day.label));
+      if (legend) {
+        var lg = el("span", "region-legend-item region-legend--" + cls, p.day.label);
+        lg.setAttribute("data-hi-day", cls); // 悬浮此项时高亮当天动线
+        legend.appendChild(lg);
+      }
     });
 
     if (legend && !paths.length) {
       legend.appendChild(el("span", "region-legend-item", "放入两个不同区域的地点后，动线会按天画在图上"));
     }
+  }
+
+  // 悬浮某天图例 → 高亮当天动线、淡化其余（桌面增强；图例是静态容器，一次绑定即可）
+  function setupRegionLegendHover() {
+    var legend = document.getElementById("region-legend");
+    var overview = legend ? legend.closest(".region-overview") : null;
+    if (!legend || !overview) return;
+    legend.addEventListener("mouseover", function (e) {
+      var item = e.target.closest("[data-hi-day]");
+      if (item) overview.setAttribute("data-hi", item.getAttribute("data-hi-day"));
+      else overview.removeAttribute("data-hi");
+    });
+    legend.addEventListener("mouseleave", function () {
+      overview.removeAttribute("data-hi");
+    });
   }
 
   function renderHintBar() {
@@ -1932,5 +1951,6 @@
   renderTabBar();
   renderPresetButtons();
   renderRegionMap();
+  setupRegionLegendHover();
   renderAll();
 })();
