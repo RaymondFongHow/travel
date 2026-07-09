@@ -32,7 +32,7 @@
 
   var STORAGE_KEY = "yixing-draft-v1";
   var POOL_KEY = "yixing-pool-v1";   // 用户的工作卡池（菜单）持久化位置
-  var THEMES = ["dingshu", "spring", "bamboo-water", "night"];
+  var THEMES = ["dingshu", "spring", "bamboo-water", "food", "night"];
   var VIEWS = ["intro", "pool", "plan", "graph"]; // 移动端四个子页；桌面端三栏并排
   var HEAVY_EDGE_MIN = 60; // 达到这个分钟数即提示“移动偏重”
 
@@ -68,7 +68,8 @@
     { theme: "dingshu", label: "丁蜀 · 泥与窑火" },
     { theme: "spring", label: "春日 · 茶与田野" },
     { theme: "bamboo-water", label: "竹洞水 · 清凉" },
-    { theme: "night", label: "夜晚 · 饭局 / 住宿 / 自由" }
+    { theme: "food", label: "餐饮 · 不分早晚" },
+    { theme: "night", label: "夜晚 · 住宿 / 自由" }
   ];
 
   var TYPE_LABELS = {

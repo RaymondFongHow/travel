@@ -173,7 +173,7 @@ window.YX.places = [
     id: "tide-coffee",
     title: "Tide Coffee",
     type: "food",
-    theme: "dingshu",
+    theme: "food",
     locationCode: "DS",
     cardRole: "food",
     durationMin: 45,
@@ -195,7 +195,7 @@ window.YX.places = [
     id: "taoxi-restaurant",
     title: "陶喜艺术餐厅（陶二厂）",
     type: "food",
-    theme: "dingshu",
+    theme: "food",
     locationCode: "DS",
     cardRole: "food",
     durationMin: 90,
@@ -437,7 +437,7 @@ window.YX.places = [
     id: "bujie-heisonglin",
     title: "不介·黑松林",
     type: "food",
-    theme: "bamboo-water",
+    theme: "food",
     locationCode: "LC",
     cardRole: "food",
     durationMin: 75,
@@ -456,7 +456,9 @@ window.YX.places = [
     sourceLinks: []
   },
 
-  /* ---------- 夜晚：饭局、住宿 ---------- */
+  /* ---------- 餐饮（theme: "food"，见下）与夜晚：住宿 / 自由 ----------
+     注：餐饮已独立成 food 主题，不再算“夜晚”。分组由每张卡的 theme 决定，
+     不看它在本文件里的物理位置（Tide/陶喜/不介 也都是 food，散在上面各区）。 */
   {
     id: "longbeishan-forest-park",
     title: "龙背山森林公园",
@@ -482,7 +484,7 @@ window.YX.places = [
     id: "yibang-dinner",
     title: "宜帮菜晚餐",
     type: "food",
-    theme: "night",
+    theme: "food",
     locationCode: "CENTER",
     cardRole: "food",
     durationMin: 90,
@@ -504,7 +506,7 @@ window.YX.places = [
     id: "noodle-shop",
     title: "本地面馆",
     type: "food",
-    theme: "night",
+    theme: "food",
     locationCode: "CENTER",
     cardRole: "food",
     durationMin: 45,
@@ -526,7 +528,7 @@ window.YX.places = [
     id: "tangwei-restaurant",
     title: "唐味",
     type: "food",
-    theme: "night",
+    theme: "food",
     locationCode: "CENTER",
     cardRole: "food",
     durationMin: 90,
