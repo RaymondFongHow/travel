@@ -65,11 +65,11 @@
   }
 
   var THEME_GROUPS = [
-    { theme: "dingshu", label: "丁蜀 · 泥与窑火" },
-    { theme: "spring", label: "春日 · 茶与田野" },
-    { theme: "bamboo-water", label: "竹洞水 · 清凉" },
-    { theme: "food", label: "餐饮 · 不分早晚" },
-    { theme: "night", label: "夜晚 · 住宿 / 自由" }
+    { theme: "dingshu", label: "丁蜀 · 泥与窑火", blurb: "紫砂、老街、窑坊" },
+    { theme: "spring", label: "春日 · 茶与田野", blurb: "阳羡茶、茶园、山坡" },
+    { theme: "bamboo-water", label: "竹洞水 · 清凉", blurb: "竹海、溶洞、湖边" },
+    { theme: "food", label: "餐饮 · 不分早晚", blurb: "咖啡、正餐、面馆" },
+    { theme: "night", label: "夜晚 · 住宿 / 自由", blurb: "住宿、夜色、打牌" }
   ];
 
   var TYPE_LABELS = {
@@ -590,6 +590,23 @@
     if (allBtn) allBtn.setAttribute("aria-pressed", state.filter === "all" ? "true" : "false");
   }
 
+  // 简介的入口列表随菜单流动：只列出当前卡池里真有卡片的那几类（顺序同 THEME_GROUPS）
+  function renderIntro() {
+    var wrap = document.getElementById("intro-themes");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    THEME_GROUPS.forEach(function (g) {
+      var has = PLACES.some(function (p) { return p.theme === g.theme; });
+      if (!has) return;
+      var li = el("li");
+      li.setAttribute("data-card-theme", g.theme);
+      li.setAttribute("data-theme-go", g.theme); // 点它 = 切主题 + 筛选菜单并跳过去
+      li.appendChild(el("strong", null, g.label));
+      if (g.blurb) li.appendChild(document.createTextNode(g.blurb));
+      wrap.appendChild(li);
+    });
+  }
+
   function buildCardEl(card) {
     var used = findCardLoc(card.id);
     var isLight = card.type === "free-time" || card.type === "buffer";
@@ -1098,6 +1115,7 @@
   }
 
   function renderAll() {
+    renderIntro();
     renderPool();
     renderDay();
     renderRouteGraph();
